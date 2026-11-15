@@ -11,6 +11,7 @@ every brief.
 | [02 Esc opens the menu](02-esc-menu.md) | small | - |
 | [03 Scripted walk-through tests](03-walkthrough-tests.md) | medium | - |
 | [04 Linux build](04-linux-build.md) | medium | - |
+| [05 Windows build](05-windows-build.md) | large | 04 |
 
 Not yet written up (see `../ROADMAP.md`): printing the postcards, a
 `Madeline.app` bundle, reading the ISO without extracting it, save-and-continue.

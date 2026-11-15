@@ -12,7 +12,7 @@ if [ ! -x "$PY" ]; then
   if command -v uv >/dev/null 2>&1; then uv venv -q "$ROOT/.venv" && uv pip install -q --python "$PY" capstone
   else python3 -m venv "$ROOT/.venv" && "$PY" -m pip install -q capstone; fi
 fi
-SUM=$(shasum -a 256 "$EXE" | cut -d' ' -f1)
+if command -v sha256sum >/dev/null 2>&1; then SUM=$(sha256sum "$EXE" | cut -d' ' -f1); else SUM=$(shasum -a 256 "$EXE" | cut -d' ' -f1); fi
 KNOWN=$(cat "$ROOT/docs/MADEURO.sha256" 2>/dev/null || true)
 [ -z "$KNOWN" ] || [ "$SUM" = "$KNOWN" ] || echo "warning: MADEURO.EXE differs from the build this port was made against ($SUM)" >&2
 mkdir -p "$ROOT/build/gen"

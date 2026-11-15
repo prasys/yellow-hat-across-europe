@@ -75,7 +75,7 @@ static void shot_if_wanted(void) {
     static int n;
     time_t t = time(NULL);
     strftime(stamp, sizeof stamp, "%Y%m%d-%H%M%S", localtime(&t));
-    mkdir(g_shot_dir, 0755);
+    madeline_make_dirs(g_shot_dir);
     snprintf(file, sizeof file, "%s/madeline-%s-%02d.bmp", g_shot_dir, stamp, n++ % 100);
     shot(file);
 }

@@ -125,16 +125,11 @@ int main(int argc, char **argv) {
      * go there, in the user's home, so the disc's folder stays untouched. The
      * settings file is beside it. */
     char root[PATH_MAX], exe[PATH_MAX + 32], save[PATH_MAX + 64], cd_ini[PATH_MAX];
-    const char *home = getenv("HOME");
-    snprintf(save, sizeof save, "%s/Library/Application Support/MadelineEuropeanAdventures", home ? home : ".");
-    if (getenv("MADELINE_SAVE_DIR")) snprintf(save, sizeof save, "%s", getenv("MADELINE_SAVE_DIR"));   /* tests: not the player's saves */
+    madeline_data_dir(save, sizeof save);                /* per system: platform.c */
     {
-        char cmd[PATH_MAX + 128];
-        mkdir(save, 0755);
-        snprintf(cmd, sizeof cmd, "%s/CWONDERS", save);
-        mkdir(cmd, 0755);
-        snprintf(cmd, sizeof cmd, "%s/CWONDERS/MADEURO", save);
-        mkdir(cmd, 0755);
+        char dir[PATH_MAX + 128];
+        snprintf(dir, sizeof dir, "%s/CWONDERS/MADEURO", save);
+        madeline_make_dirs(dir);
     }
     snprintf(g_ini, sizeof g_ini, "%s/madeline.ini", save);
 

@@ -150,6 +150,7 @@ your disc ──extract──> game/cd/MADEURO.EXE ──pcrecomp──> build/g
 | `src/gfx.c` | The display: GDI + `WING32.DLL` on a palette-indexed 640x480 screen, so palette fades and colour cycling work as on 256-colour Windows; smooths the dithering; draws the mouse pointer |
 | `src/audio.c` | `waveOut` on SDL audio, with buffers reported done when actually heard (the game times animation by it); MCI for the music |
 | `src/midi.c` | Standard MIDI Files on AudioToolbox |
+| `src/platform.c` | Where the player's files live on each system |
 | `src/shims.c` | The CD-ROM drive check, the installer's registry entry, the clock, the window's size |
 | `src/debug.c` | A script driver for tests; screenshots |
 | `launcher/` | The macOS app: a SwiftUI settings window and Play button around the engine |

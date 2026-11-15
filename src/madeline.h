@@ -1,11 +1,16 @@
 /* madeline.h - what this host's own files share. */
 #ifndef MADELINE_H
 #define MADELINE_H
+#include <stddef.h>
 #include <stdint.h>
 #include "win32hle.h"
 
 extern const win32hle_shim madeline_shims[];    /* shims.c: drives, the registry */
 uint64_t madeline_clock_ns(void);               /* the game's clock (shims.c) */
+/* platform.c */
+void madeline_data_dir(char *out, size_t n);     /* where settings, saves and screenshots live */
+void madeline_make_dirs(const char *path);      /* mkdir -p */
+
 void madeline_ini_set(const char *key, const char *value);   /* remember a setting (main.c) */
 extern int madeline_headless;                   /* no window: message boxes answer themselves */
 extern int madeline_remember_name;              /* type the last saved name into the sign-in book (shims.c) */

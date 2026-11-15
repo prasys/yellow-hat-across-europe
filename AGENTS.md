@@ -68,6 +68,7 @@ that reaches the code you changed and look at the screenshots.
 | `src/audio.c` | `waveOut*` on SDL (via win32hle's stream mixer) and `mciSendCommandA` |
 | `src/midi.c` | MIDI files on AudioToolbox; silent stand-in elsewhere |
 | `src/shims.c` | CD drive type, registry, the clock + idle throttle, window maximize |
+| `src/platform.c` | Per-system data folder (macOS / XDG / `%APPDATA%`), `mkdir -p`. New OS differences go here, not in `#ifdef`s scattered through the other files |
 | `src/debug.c` | `MADELINE_SCRIPT` test driver; F9 / `SIGUSR1` screenshots |
 | `src/madeline.h` | What the files above share |
 | `launcher/` | SwiftUI app (macOS 13+): edits `madeline.ini`, lists saves, unpacks a disc image, runs the engine. Built with plain `swiftc` (`make app`), no Xcode project. `launcher --snapshot FILE` writes a picture of its window, for checking layout |

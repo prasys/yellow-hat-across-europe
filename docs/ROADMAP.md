@@ -102,13 +102,27 @@ Ordered by how much each matters to someone actually playing.
 
 ## 4. Other platforms
 
-- [ ] **Linux**: expected to build as is (64-bit, based memory). Needs a MIDI
-      player in `midi.c` (FluidSynth + a SoundFont) and a save folder that is
-      not `~/Library/...` (`main.c` hard-codes it; use XDG).
-- [ ] **Windows**: pcrecomp's `native32` runtime would forward to real Win32,
-      but WinG and 256-colour palettes no longer exist there, so `gfx.c` is
-      still wanted. Unexplored.
-- [ ] **Intel Macs**: should work unchanged; untested.
+Order: Linux, then Windows. Full checklists are in the briefs; the summary:
+
+**Linux** ([brief 04](briefs/04-linux-build.md)) - expected to be close:
+
+- [x] Per-system data folder (`src/platform.c`, XDG on Linux) and scripts
+      that do not need macOS tools (2026-11-15; verified on macOS only).
+- [ ] First build and win32hle selftests on Linux; guest memory base address.
+- [ ] Headless playtest to the station (case-sensitive filesystem).
+- [ ] Window, sound, pointer checked on X11 and Wayland.
+- [ ] MIDI through FluidSynth.
+- [ ] Launcher or not; desktop entry; CI without a game.
+
+**Windows** ([brief 05](briefs/05-windows-build.md)) - a real port:
+
+- [ ] Interim: the Linux build under WSL2/WSLg, documented.
+- [ ] MinGW-w64 build of the same host (not pcrecomp's `native32`): a POSIX
+      compatibility layer in `src/win/` for win32hle (`mmap` on
+      `VirtualAlloc`, no sockets, small libc gaps).
+- [ ] MIDI through the real `winmm`; launcher; packaging; CI job.
+
+**Intel Macs**: should work unchanged; untested.
 
 ## 5. Housekeeping
 
