@@ -4,8 +4,9 @@ Guidance for coding agents (and people) working in this repository.
 
 ## What this is
 
-A native macOS port of **Madeline: European Adventures** (Creative Wonders, 1996)
-made by static recompilation. The game's `MADEURO.EXE` is lifted to C by
+**The Little Girl in the Yellow Hat Across Europe**: a native macOS port of
+*Madeline: European Adventures* (Creative Wonders, 1996) made by static
+recompilation. The project goes by its own name; the game keeps its title. The game's `MADEURO.EXE` is lifted to C by
 [pcrecomp](https://github.com/sp00nznet/pcrecomp) (`third_party/pcrecomp`, a git
 submodule) and linked with the host in `src/`, which stands in for Windows 95.
 Read `README.md` first, then `docs/NOTES.md` (what is known about the
@@ -18,6 +19,9 @@ finished.
 
 ## Hard rules
 
+0. **The launcher draws its own artwork** (a hat from two shapes). No art,
+   sound, character likeness or logo from the game goes into the app or the
+   repository, and the built `.app` (it contains the lift) is never shared.
 1. **Never commit anything that comes from the game.** That means the disc
    (`game/`), the lifted C (`build/gen/`), screenshots of the game, extracted
    art or sound, and long disassembly listings. `game/` and `build/` are
@@ -43,6 +47,7 @@ make extract ISO=/path/to.iso   # unpack a disc into game/cd (needs the user's o
 make                            # lift (if needed) + build build/madeline   (~15 s clean)
 make lift                       # re-run the recompiler only
 make run                        # play, in a window
+make app                        # build/<project name>.app: launcher + engine (make launch opens it)
 make clean                      # removes build/ (the lift too)
 scripts/playtest.sh OUT "SCRIPT" [speed]   # headless, fast-forwarded, screenshots + _sheet.png
 scripts/dis.sh 405b90 405c10    # original instructions for an address range, from the lift
@@ -65,12 +70,19 @@ that reaches the code you changed and look at the screenshots.
 | `src/shims.c` | CD drive type, registry, the clock + idle throttle, window maximize |
 | `src/debug.c` | `MADELINE_SCRIPT` test driver; F9 / `SIGUSR1` screenshots |
 | `src/madeline.h` | What the files above share |
+| `launcher/` | SwiftUI app (macOS 13+): edits `madeline.ini`, lists saves, unpacks a disc image, runs the engine. Built with plain `swiftc` (`make app`), no Xcode project. `launcher --snapshot FILE` writes a picture of its window, for checking layout |
 | `scripts/` | extract, lift, playtest, dis |
 | `docs/` | NOTES (findings), ROADMAP (to do), `briefs/` (work orders), `MADEURO.sha256` (the build targeted) |
 | `build/gen/` | Generated: the lifted game. Never edit by hand, never commit |
 
 ## How the host works (the parts that bite)
 
+- **The engine is tied to one MADEURO.EXE.** `build/gen/lift_id.h` holds the
+  POSIX cksum and size of the EXE that was lifted; `main.c` refuses any other
+  (exit 3) and `--check` reports it. A different disc must be re-lifted
+  (`make CD=...`); the launcher does this itself through
+  `make engine-into-app`, using the checkout path stored in the app
+  (`Contents/Resources/source-root`).
 - **Shim ABI.** A Win32 import is a `void fn(void)` run inside the lifted
   machine. Read stdcall arguments with `A32(i)`, `APTR(i)`, `ASTR(i)`; return
   with `RET(value, argc)`. **`argc` must be the real argument count** or the

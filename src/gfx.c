@@ -23,7 +23,9 @@
 
 static uint8_t  g_idx[SCR_W * SCR_H];        /* the screen, as palette indices */
 static uint32_t g_rgb[SCR_W * SCR_H];        /* the same picture in XRGB */
-static uint32_t g_out[SCR_W * SCR_H];        /* that, with the mouse pointer on it: what the presenter shows */
+static uint32_t g_soft[SCR_W * SCR_H];       /* the picture with its dithering melted (smoothing on) */
+static uint32_t g_out[SCR_W * SCR_H];        /* what the presenter shows: g_soft or g_rgb, with the mouse pointer on it */
+static int      g_smooth = 1;
 static uint32_t g_hw[256];                   /* the hardware palette, 0x00RRGGBB */
 static int      g_hw_set;                    /* a palette has been realized */
 static int      g_trace;
@@ -92,11 +94,55 @@ static void draw_pointer(void) {
         }
 }
 static void copy_out(int x0, int y0, int x1, int y1) {
+    const uint32_t *src = g_smooth ? g_soft : g_rgb;
     if (x0 < 0) x0 = 0;
     if (y0 < 0) y0 = 0;
     if (x1 > SCR_W) x1 = SCR_W;
     if (y1 > SCR_H) y1 = SCR_H;
-    for (int y = y0; y < y1 && x0 < x1; y++) memcpy(g_out + y * SCR_W + x0, g_rgb + y * SCR_W + x0, (size_t)(x1 - x0) * 4);
+    for (int y = y0; y < y1 && x0 < x1; y++) memcpy(g_out + y * SCR_W + x0, src + y * SCR_W + x0, (size_t)(x1 - x0) * 4);
+}
+
+/* ---- smoothing ----
+ * The game's pictures are paintings cut down to 256 colours, so every wash of
+ * paint is a dither: two or three near colours in a speckle. Scaled up, that
+ * speckle is what looks rough. Each pixel is replaced by a weighted average of
+ * the pixels around it (5x5) that are close to it in colour - so a speckle
+ * melts into the colour it was standing for, while an ink line, which is
+ * nothing like its surroundings, averages only with itself and stays sharp.
+ * The presenter then scales the result smoothly. Off: the pixels as they are. */
+#define SOFT_R      2                        /* neighbourhood radius */
+#define SOFT_NEAR   56                       /* how far apart (largest channel difference) two colours of one wash can be */
+static void soften(int x0, int y0, int x1, int y1) {
+    static const int k_w[5] = { 1, 3, 4, 3, 1 };
+    if (x0 < 0) x0 = 0;
+    if (y0 < 0) y0 = 0;
+    if (x1 > SCR_W) x1 = SCR_W;
+    if (y1 > SCR_H) y1 = SCR_H;
+    for (int y = y0; y < y1; y++)
+        for (int x = x0; x < x1; x++) {
+            uint32_t c = g_rgb[y * SCR_W + x];
+            int cr = (int)(c >> 16 & 0xFF), cg = (int)(c >> 8 & 0xFF), cb = (int)(c & 0xFF);
+            unsigned r = 0, g = 0, b = 0, n = 0;
+            for (int j = -SOFT_R; j <= SOFT_R; j++) {
+                int yy = y + j;
+                if (yy < 0 || yy >= SCR_H) continue;
+                const uint32_t *row = g_rgb + yy * SCR_W;
+                for (int i = -SOFT_R; i <= SOFT_R; i++) {
+                    int xx = x + i;
+                    if (xx < 0 || xx >= SCR_W) continue;
+                    uint32_t p = row[xx];
+                    int pr = (int)(p >> 16 & 0xFF), pg = (int)(p >> 8 & 0xFF), pb = (int)(p & 0xFF);
+                    int dr = pr - cr, dg = pg - cg, db = pb - cb;
+                    if (dr < 0) dr = -dr;
+                    if (dg < 0) dg = -dg;
+                    if (db < 0) db = -db;
+                    if (dr > SOFT_NEAR || dg > SOFT_NEAR || db > SOFT_NEAR) continue;
+                    unsigned w = (unsigned)(k_w[j + SOFT_R] * k_w[i + SOFT_R]);
+                    r += w * (unsigned)pr, g += w * (unsigned)pg, b += w * (unsigned)pb, n += w;
+                }
+            }
+            g_soft[y * SCR_W + x] = (r / n) << 16 | (g / n) << 8 | (b / n);
+        }
 }
 /* Called while the game idles: follow the mouse, the cursor's shape, and whether it is hidden. */
 void madeline_gfx_pointer(void) {
@@ -124,6 +170,10 @@ static void recolour(int x0, int y0, int x1, int y1) {
         for (int x = x0; x < x1; x++) d[x] = g_hw[s[x]];
     }
     if (x0 >= x1 || y0 >= y1) return;
+    if (g_smooth) {                                      /* a changed pixel changes its neighbours' averages too */
+        x0 -= SOFT_R, y0 -= SOFT_R, x1 += SOFT_R, y1 += SOFT_R;
+        soften(x0, y0, x1, y1);
+    }
     int px0, py0, px1, py1;
     pointer_rect(&px0, &py0, &px1, &py1);
     if (g_ptr.shown && px0 < x1 && px1 > x0 && py0 < y1 && py1 > y0) {   /* drawn under the pointer: both again */
@@ -149,6 +199,16 @@ static uint8_t nearest(uint32_t c) {
         if (bd < 0 || d < bd) { bd = d, best = i; if (!d) break; }
     }
     return (uint8_t)best;
+}
+int madeline_gfx_smooth(int on) {                        /* -1: just ask */
+    if (on >= 0 && (on != 0) != g_smooth) {
+        g_smooth = on != 0;
+        if (g_smooth) soften(0, 0, SCR_W, SCR_H);
+        copy_out(0, 0, SCR_W, SCR_H);
+        draw_pointer();
+        hle_gdi_window_touched();
+    }
+    return g_smooth;
 }
 const uint32_t *madeline_frame(int *w, int *h) { *w = SCR_W, *h = SCR_H; return g_out; }
 

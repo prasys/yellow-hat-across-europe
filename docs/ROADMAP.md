@@ -61,18 +61,38 @@ Ordered by how much each matters to someone actually playing.
 
 ## 3. Making it something a non-programmer can use
 
-- [ ] **`Madeline.app`**: a bundle with SDL2/SDL2_ttf inside (`dylibbundler`),
-      an icon, and a first-run step that asks for the user's ISO or CD folder
-      and remembers it. Today it needs Homebrew and a terminal.
+- [x] **Launcher app** (2026-11-15): `make app` builds a SwiftUI launcher
+      (`launcher/`) around the engine: disc chooser (ISO or folder), settings,
+      saved games, Play. Layout checked from its own window snapshot; the
+      controls have not been clicked through by a person yet.
+- [ ] **A self-contained app**: SDL2/SDL2_ttf inside the bundle
+      (`dylibbundler`), an app icon, code signing. Today it still needs
+      Homebrew's SDL and is built from a terminal.
+- [ ] **Launcher extras**: pick which saved game to continue (ties in with
+      brief 01), volume, a screenshots browser, delete a save.
+- [x] **Build from the launcher** (2026-11-15): choosing a disc the engine
+      was not built for runs lift + compile from the app (needs the source
+      checkout, compiler tools and Homebrew SDL). The rebuild path itself has
+      only been run for the same disc; a second, different pressing of the
+      game has never been tried.
 - [ ] **The lift has to happen on the player's machine** (the lifted code is
       the game's and cannot be shipped). For an app that means either bundling
       the Python lifter, or loading a lift built at first run as a dylib.
       Decide which before starting on the bundle.
 - [ ] **Read the ISO directly** instead of extracting 626 MB (mount with
       `hdiutil`, or a small ISO9660 reader behind `hle_set_drive`).
-- [ ] **Settings file**: `madeline.ini` is read (`skip_intro`, `fullscreen`)
-      but never written: F11/F12 choices and a volume are not remembered
-      (`hle_screen_settings_hook` exists for this).
+- [x] **Settings file** (2026-11-15): `madeline.ini` is read and written;
+      F10/F11/F12 choices are remembered. A volume setting is still missing.
+- [x] **Smoothing** (2026-11-15): on by default. `gfx.c` melts the 256-colour
+      dithering with a colour-aware 5x5 average (ink lines are left alone) and
+      the presenter scales smoothly, blurred bars when full screen. Pixel-art
+      scalers (xBR, hqx) were tried on a captured frame and rejected: they
+      turn the dither into a wormy texture.
+- [ ] **Sharper smooth scaling.** The smoothing runs at 640x480 and the
+      window scaling is plain bilinear, so outlines are a little soft. Next
+      steps: produce the picture at 2x in the host (needs the mouse mapping
+      halved: the presenter maps the window to the surface's size), or a
+      line-art shader (Anime4K) once there is a shader path.
 - [x] **Intro skip** (2026-11-15): `--skip-intro` or `skip_intro=1` in
       `madeline.ini`. The original already stops a movie on Enter; the host
       presses it for the two opening movies. Uses two addresses from this

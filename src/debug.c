@@ -52,9 +52,16 @@ static volatile sig_atomic_t g_shot_wanted;
 static char g_shot_dir[1100];
 static void on_usr1(int sig) { (void)sig; g_shot_wanted = 1; }
 static int on_key(int scancode, int down) {
-    if (scancode != 66 /* SDL_SCANCODE_F9 */) return 0;
-    if (down) g_shot_wanted = 1;
-    return 1;
+    if (scancode == 66 /* SDL_SCANCODE_F9 */) { if (down) g_shot_wanted = 1; return 1; }
+    if (scancode == 67 /* SDL_SCANCODE_F10 */) {         /* smoothing on and off, to compare */
+        if (down) {
+            int on = madeline_gfx_smooth(!madeline_gfx_smooth(-1));
+            madeline_ini_set("smooth", on ? "1" : "0");
+            fprintf(stderr, "[gfx] smoothing %s\n", on ? "on" : "off");
+        }
+        return 1;
+    }
+    return 0;
 }
 void madeline_screenshots_init(const char *save_root) {
     snprintf(g_shot_dir, sizeof g_shot_dir, "%s/screenshots", save_root);
