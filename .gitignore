@@ -1,0 +1,7 @@
+# Nothing from the game is ever committed: not the disc, not the lifted code.
+/game/
+/build/
+/.venv/
+*.iso
+*.o
+.DS_Store

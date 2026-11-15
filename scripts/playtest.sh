@@ -1,0 +1,24 @@
+#!/bin/sh
+# Drive the game headless and fast, for testing: scripts/playtest.sh OUTDIR "SCRIPT" [speed]
+# SCRIPT is MADELINE_SCRIPT (src/debug.c); `shot NAME` paths are relative to OUTDIR.
+set -eu
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+OUT=$1; SCRIPT=$2; SPEED=${3:-8}
+mkdir -p "$OUT"
+OUT=$(cd "$OUT" && pwd)
+SCRIPT=$(printf '%s' "$SCRIPT" | sed "s#shot #shot $OUT/#g")
+# Saves go to OUT/save, never the player's own folder. Put files there first to test loading.
+mkdir -p "$OUT/save"
+SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy HLE_FILETRACE=1 MADELINE_AUDIOTRACE=1 MADELINE_SPEED=$SPEED MADELINE_NO_NAME=${MADELINE_NO_NAME-1} MADELINE_SAVE_DIR="$OUT/save" \
+  MADELINE_SCRIPT="$SCRIPT" "$ROOT/build/madeline" --headless "${MADELINE_CD:-$ROOT/game/cd}" > "$OUT/run.log" 2>&1 || echo "exit code $?" >> "$OUT/run.log"
+if command -v sips >/dev/null 2>&1; then
+  for f in "$OUT"/*.bmp; do [ -f "$f" ] && sips -s format png "$f" --out "${f%.bmp}.png" >/dev/null 2>&1 && rm "$f"; done
+fi
+grep -v '^\[pe\]\|SCRATCH\|MAD320\|^\[script\] shot' "$OUT/run.log" | sed 's/ -> .*//' | cut -c1-120 | tail -${TAIL:-40}
+# A contact sheet of the shots, in name order (_sheet.png), when ffmpeg is there.
+N=$(ls "$OUT"/*.png 2>/dev/null | grep -vc _sheet.png || true)
+if [ "$N" -gt 1 ] && command -v ffmpeg >/dev/null 2>&1; then
+  rm -f "$OUT/_sheet.png"
+  ROWS=$(( (N + 3) / 4 ))
+  ffmpeg -loglevel error -y -pattern_type glob -i "$OUT/[!_]*.png" -vf "scale=320:240,tile=4x$ROWS" -frames:v 1 "$OUT/_sheet.png" || true
+fi
