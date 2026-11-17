@@ -49,6 +49,7 @@ make lift                       # re-run the recompiler only
 make run                        # play, in a window
 make app                        # build/<project name>.app: launcher + engine (make launch opens it)
 make clean                      # removes build/ (the lift too)
+make STUB=1                     # no game needed: an empty lift, into build/stub (what CI builds; scripts/smoke.sh checks it starts)
 scripts/playtest.sh OUT "SCRIPT" [speed]   # headless, fast-forwarded, screenshots + _sheet.png
 scripts/dis.sh 405b90 405c10    # original instructions for an address range, from the lift
 ```
@@ -57,6 +58,10 @@ Requirements: `brew install sdl2 sdl2_ttf`, Python 3 with `capstone` (the lift
 script makes `.venv` itself), and `ffmpeg` if you want contact sheets.
 On Windows: an MSYS2 UCRT64 shell with the packages in the README; the
 binary is `build/madeline.exe` and every command above is run from that shell.
+
+CI (`.github/workflows/build.yml`) builds `make STUB=1` and the launchers on
+macOS and Windows, and tries Linux. It has no game, so it cannot tell whether
+the game plays.
 
 There is no unit-test suite. "It builds" is not verification: run a playtest
 that reaches the code you changed and look at the screenshots.

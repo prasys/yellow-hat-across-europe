@@ -14,7 +14,11 @@ DEFS     := -DRECOMP_MEM_BASE=0x100000000000ull
 SDL      := $(shell pkg-config --cflags sdl2 SDL2_ttf)
 UNAME    := $(shell uname -s)
 WARN     := -Wall -Wno-unused-function -Wno-unused-but-set-variable -Wno-unused-variable -Wno-unused-label
-CFLAGS   := $(DEFS) -I$(PCRECOMP)/runtime/recomp32 -I$(HLE) -Isrc -Ibuild/gen $(SDL)
+# make STUB=1: no game at all (CI). An empty lift stands in for build/gen, so
+# the host and pcrecomp's runtime are at least compiled and linked. It is kept
+# apart, in build/stub, and never touches a real build.
+B        := $(if $(STUB),build/stub,build)
+CFLAGS   := $(DEFS) -I$(PCRECOMP)/runtime/recomp32 -I$(HLE) -Isrc -I$(B)/gen $(SDL)
 HLE_SRC  := $(filter-out %_selftest.c,$(wildcard $(HLE)/*.c))
 HOST_SRC := $(wildcard src/*.c)
 ifneq (,$(findstring MINGW,$(UNAME)))
@@ -35,26 +39,26 @@ ifeq ($(UNAME),Darwin)
 LIBS     += -framework AudioToolbox -framework CoreFoundation
 endif
 endif
-BIN      := build/madeline$(EXE)
+BIN      := $(B)/madeline$(EXE)
 
-HLE_OBJ  := $(patsubst $(HLE)/%.c,build/obj/hle/%.o,$(HLE_SRC))
-SRC_OBJ  := $(patsubst src/%.c,build/obj/src/%.o,$(HOST_SRC))
-GEN_OBJ  := build/obj/gen/recomp_0000.o build/obj/gen/recomp_dispatch.o
+HLE_OBJ  := $(patsubst $(HLE)/%.c,$(B)/obj/hle/%.o,$(HLE_SRC))
+SRC_OBJ  := $(patsubst src/%.c,$(B)/obj/src/%.o,$(HOST_SRC))
+GEN_OBJ  := $(B)/obj/gen/recomp_0000.o $(B)/obj/gen/recomp_dispatch.o
 
 all: $(BIN)
 
 $(BIN): $(HLE_OBJ) $(SRC_OBJ) $(GEN_OBJ)
 	$(CC) -o $@ $^ $(LIBS)
 
-build/obj/hle/%.o: $(HLE)/%.c
+$(B)/obj/hle/%.o: $(HLE)/%.c
 	@mkdir -p $(@D)
 	$(CC) $(OPT) $(WARN) $(CFLAGS) -c $< -o $@
-build/obj/src/%.o: src/%.c
+$(B)/obj/src/%.o: src/%.c
 	@mkdir -p $(@D)
 	$(CC) $(OPT) -Wall $(CFLAGS) -c $< -o $@
-build/obj/gen/%.o: build/gen/%.c
+$(B)/obj/gen/%.o: $(B)/gen/%.c
 	@mkdir -p $(@D)
-	$(CC) $(GENOPT) -w $(CFLAGS) -include build/gen/recomp_funcs.h -c $< -o $@
+	$(CC) $(GENOPT) -w $(CFLAGS) -include $(B)/gen/recomp_funcs.h -c $< -o $@
 
 # The lifted C is made from the player's own MADEURO.EXE; it is never committed.
 # lift_id.h records which MADEURO.EXE that was (its POSIX cksum and size). It
@@ -62,6 +66,15 @@ build/obj/gen/%.o: build/gen/%.c
 # makes a different disc lift again; the engine checks it against the disc it
 # is started with (src/main.c), since code lifted from one build cannot run
 # another's data.
+ifdef STUB
+build/stub/gen/recomp_0000.c:
+	@mkdir -p build/stub/gen
+	@printf '#pragma once\n' > build/stub/gen/recomp_funcs.h
+	@printf '#define LIFT_CKSUM 0u\n#define LIFT_SIZE 0u\n' > build/stub/gen/lift_id.h
+	@printf '#include "recomp_types.h"\nconst recomp_dispatch_entry_t recomp_dispatch_table[] = { { 0, 0 } };\nconst uint32_t recomp_dispatch_count = 0;\n' > build/stub/gen/recomp_dispatch.c
+	@printf '/* no game: an empty lift (make STUB=1) */\ntypedef int no_lift;\n' > $@
+build/stub/gen/recomp_dispatch.c build/stub/gen/lift_id.h: build/stub/gen/recomp_0000.c
+else
 build/gen/lift_id.h: $(CD)/MADEURO.EXE FORCE
 	@mkdir -p build/gen
 	@cksum < "$(CD)/MADEURO.EXE" | awk '{ printf "#define LIFT_CKSUM %su\n#define LIFT_SIZE %su\n", $$1, $$2 }' > $@.new
@@ -69,7 +82,8 @@ build/gen/lift_id.h: $(CD)/MADEURO.EXE FORCE
 build/gen/recomp_0000.c: build/gen/lift_id.h
 	scripts/lift.sh "$(CD)"
 build/gen/recomp_dispatch.c: build/gen/recomp_0000.c
-build/obj/src/main.o: build/gen/lift_id.h
+endif
+$(B)/obj/src/main.o: $(B)/gen/lift_id.h
 $(SRC_OBJ): src/madeline.h
 FORCE:
 lift:
@@ -87,7 +101,7 @@ ifneq (,$(findstring MINGW,$(UNAME)))
 # needs, so it starts from Explorer. SDL2 there is sdl2-compat, which loads
 # SDL3.dll by name at run time: ldd does not show it, so it is named here.
 # The folder holds the lift of the player's own game: do not hand it on.
-APP      := build/app
+APP      := $(B)/app
 APPEXE   := Yellow Hat Across Europe.exe
 build/obj/launcher_res.o: launcher/win/launcher.rc launcher/win/launcher.manifest
 	@mkdir -p $(@D)
@@ -114,7 +128,7 @@ else
 # The launcher (macOS): a SwiftUI window for the settings and a Play button,
 # wrapped with the engine as an app. The app holds the lift of the player's
 # own game, so it is for the machine it was built on: do not hand it on.
-APP      := build/The Little Girl in the Yellow Hat Across Europe.app
+APP      := $(B)/The Little Girl in the Yellow Hat Across Europe.app
 SWIFTC   ?= swiftc
 build/launcher: $(filter-out launcher/make_icon.swift,$(wildcard launcher/*.swift))
 	@mkdir -p build
@@ -130,17 +144,17 @@ build/AppIcon.icns: launcher/make_icon.swift
 	iconutil -c icns build/AppIcon.iconset -o $@
 # Files are copied over an existing app rather than the app being replaced:
 # the launcher runs `make engine-into-app` on itself when a disc needs its engine built.
-app: build/madeline build/launcher build/AppIcon.icns launcher/Info.plist
+app: $(BIN) build/launcher build/AppIcon.icns launcher/Info.plist
 	@mkdir -p "$(APP)/Contents/MacOS" "$(APP)/Contents/Resources"
 	cp launcher/Info.plist "$(APP)/Contents/Info.plist"
 	cp build/AppIcon.icns "$(APP)/Contents/Resources/AppIcon.icns"
-	cp build/launcher build/madeline "$(APP)/Contents/MacOS/"
+	cp build/launcher $(BIN) "$(APP)/Contents/MacOS/"
 	@pwd > "$(APP)/Contents/Resources/source-root"
 	@touch "$(APP)"
 	@echo "built $(APP)"
-engine-into-app: build/madeline
+engine-into-app: $(BIN)
 	@mkdir -p "$(APP)/Contents/MacOS"
-	cp build/madeline "$(APP)/Contents/MacOS/madeline"
+	cp $(BIN) "$(APP)/Contents/MacOS/madeline"
 launch: app
 	open "$(APP)"
 endif
