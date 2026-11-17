@@ -1,8 +1,9 @@
 /*
  * midi.c - playing a Standard MIDI File with the system's own synthesizer.
  * On a Mac that is AudioToolbox's MusicPlayer and the built-in General MIDI
- * sound bank, so nothing has to be installed. Elsewhere there is no player
- * yet: the music is silent and the game goes on.
+ * sound bank, so nothing has to be installed. On Windows it is MCI's
+ * sequencer (src/win/midi_win.c). Elsewhere there is no player yet: the
+ * music is silent and the game goes on.
  */
 #include "madeline.h"
 
@@ -53,7 +54,7 @@ int madeline_midi_finished(void) {
     MusicPlayerGetTime(g_player, &t);
     return t >= g_length + 1.0;                          /* a beat for the last notes to ring */
 }
-#else
+#elif !defined(_WIN32)                                  /* Windows: src/win/midi_win.c */
 int  madeline_midi_open(const char *host_path) { (void)host_path; return 0; }
 void madeline_midi_close(void) {}
 void madeline_midi_seek(int position) { (void)position; }

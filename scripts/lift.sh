@@ -9,7 +9,10 @@ EXE=$(cd "$CD" && pwd)/MADEURO.EXE
 [ -f "$ROOT/third_party/pcrecomp/tools/__main__.py" ] || git -C "$ROOT" submodule update --init
 PY="$ROOT/.venv/bin/python"
 if [ ! -x "$PY" ]; then
-  if command -v uv >/dev/null 2>&1; then uv venv -q "$ROOT/.venv" && uv pip install -q --python "$PY" capstone
+  # A Python that has capstone already is used as it is. That is how it comes
+  # on MSYS2 (Windows), as a package: pip has no ready-made capstone there.
+  if python3 -c 'import capstone' >/dev/null 2>&1; then PY=python3
+  elif command -v uv >/dev/null 2>&1; then uv venv -q "$ROOT/.venv" && uv pip install -q --python "$PY" capstone
   else python3 -m venv "$ROOT/.venv" && "$PY" -m pip install -q capstone; fi
 fi
 if command -v sha256sum >/dev/null 2>&1; then SUM=$(sha256sum "$EXE" | cut -d' ' -f1); else SUM=$(shasum -a 256 "$EXE" | cut -d' ' -f1); fi

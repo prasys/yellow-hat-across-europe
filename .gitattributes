@@ -1,0 +1,4 @@
+# Git for Windows turns line ends into CRLF on checkout unless told otherwise.
+# The shell scripts and the Makefile are run by MSYS2 there and must stay LF.
+*.sh     text eol=lf
+Makefile text eol=lf

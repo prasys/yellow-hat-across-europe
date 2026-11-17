@@ -49,12 +49,19 @@ make lift                       # re-run the recompiler only
 make run                        # play, in a window
 make app                        # build/<project name>.app: launcher + engine (make launch opens it)
 make clean                      # removes build/ (the lift too)
+make STUB=1                     # no game needed: an empty lift, into build/stub (what CI builds; scripts/smoke.sh checks it starts)
 scripts/playtest.sh OUT "SCRIPT" [speed]   # headless, fast-forwarded, screenshots + _sheet.png
 scripts/dis.sh 405b90 405c10    # original instructions for an address range, from the lift
 ```
 
 Requirements: `brew install sdl2 sdl2_ttf`, Python 3 with `capstone` (the lift
 script makes `.venv` itself), and `ffmpeg` if you want contact sheets.
+On Windows: an MSYS2 UCRT64 shell with the packages in the README; the
+binary is `build/madeline.exe` and every command above is run from that shell.
+
+CI (`.github/workflows/build.yml`) builds `make STUB=1` and the launchers on
+macOS and Windows, and tries Linux. It has no game, so it cannot tell whether
+the game plays.
 
 There is no unit-test suite. "It builds" is not verification: run a playtest
 that reaches the code you changed and look at the screenshots.
@@ -65,13 +72,16 @@ that reaches the code you changed and look at the screenshots.
 |---|---|
 | `src/main.c` | Entry: drive mapping (`D:` = disc, `C:` = save folder), shim registration order, boot |
 | `src/gfx.c` | All of GDI32 + WING32 + `GetDC`/`ReleaseDC`, on a palette-indexed 640x480 screen |
+| `src/xbr.c` | `upscale=xbr`: the finished picture doubled by the xBR rule, for the changed part only, on a few threads. `gfx.c` hands it to the presenter through its 16-bit "compose" hook, which is why the mouse still counts 640x480 (see the comment there). `MADELINE_UPSCALE=xbr` for tests: `shot` then writes 1280x960; `MADELINE_GFXTRACE=1` prints its timings |
 | `src/audio.c` | `waveOut*` on SDL (via win32hle's stream mixer) and `mciSendCommandA` |
 | `src/midi.c` | MIDI files on AudioToolbox; silent stand-in elsewhere |
 | `src/shims.c` | CD drive type, registry, the clock + idle throttle, window maximize |
 | `src/platform.c` | Per-system data folder (macOS / XDG / `%APPDATA%`), `mkdir -p`. New OS differences go here, not in `#ifdef`s scattered through the other files |
 | `src/debug.c` | `MADELINE_SCRIPT` test driver; F9 / `SIGUSR1` screenshots |
 | `src/madeline.h` | What the files above share |
+| `src/win/` | Windows (MSYS2 UCRT64) only. `compat_win.c` + headers named after the POSIX ones (`unistd.h`, `dirent.h`, `sys/mman.h`...): first on the include path there, they give win32hle what MinGW lacks. `midi_win.c`: MIDI on MCI. `wsock_stub.c`: an empty WSOCK32. The only files that include `<windows.h>`; they include nothing of win32hle's (its Win32 constants would clash) |
 | `launcher/` | SwiftUI app (macOS 13+): edits `madeline.ini`, lists saves, unpacks a disc image, runs the engine. Built with plain `swiftc` (`make app`), no Xcode project. `launcher --snapshot FILE` writes a picture of its window, for checking layout |
+| `launcher/win/` | The same launcher for Windows: one C file on plain Win32, built by `make app` into `build/app/` with the engine and its DLLs. It honours `MADELINE_SAVE_DIR` and `MADELINE_ENGINE`, takes a disc image or folder as its argument, and has `--snapshot FILE.bmp` too: check it against a test folder, never the player's |
 | `scripts/` | extract, lift, playtest, dis |
 | `docs/` | NOTES (findings), ROADMAP (to do), `briefs/` (work orders), `MADEURO.sha256` (the build targeted) |
 | `build/gen/` | Generated: the lifted game. Never edit by hand, never commit |

@@ -6,6 +6,9 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 OUT=$1; SCRIPT=$2; SPEED=${3:-8}
 mkdir -p "$OUT"
 OUT=$(cd "$OUT" && pwd)
+# MSYS2 (Windows): the game is a native program and is given this path inside
+# the script text, where the shell does not translate it: C:/..., not /c/...
+if command -v cygpath >/dev/null 2>&1; then OUT=$(cygpath -m "$OUT"); fi
 SCRIPT=$(printf '%s' "$SCRIPT" | sed "s#shot #shot $OUT/#g")
 # Saves go to OUT/save, never the player's own folder. Put files there first to test loading.
 mkdir -p "$OUT/save"

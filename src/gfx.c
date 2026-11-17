@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "win32hle.h"
 #include "madeline.h"
 
@@ -26,7 +27,13 @@ static uint32_t g_rgb[SCR_W * SCR_H];        /* the same picture in XRGB */
 static uint32_t g_soft[SCR_W * SCR_H];       /* the picture with its dithering melted (smoothing on) */
 static uint32_t g_out[SCR_W * SCR_H];        /* what the presenter shows: g_soft or g_rgb, with the mouse pointer on it */
 static int      g_smooth = 1;
-static uint32_t g_hw[256];                   /* the hardware palette, 0x00RRGGBB */
+/* upscale=xbr: g_out at twice the size with its edges redrawn (xbr.c), kept
+ * up to date for the part of g_out that changed since it was last shown. */
+static uint32_t g_big[4 * SCR_W * SCR_H];
+static uint16_t g_stand_in[SCR_W * SCR_H];   /* what the presenter is told the screen is, while g_big is shown (madeline_gfx_upscale) */
+static int      g_xbr;
+static int      g_dx0 = SCR_W, g_dy0 = SCR_H, g_dx1, g_dy1;   /* the changed part of g_out */
+static uint32_t g_hw[256];                 /* the hardware palette, 0x00RRGGBB */
 static int      g_hw_set;                    /* a palette has been realized */
 static int      g_trace;
 
@@ -75,10 +82,17 @@ static void plot(int x, int y, int kind) {   /* 0 black, 1 white, 2 invert */
     uint32_t *p = g_out + y * SCR_W + x;
     *p = kind == 0 ? 0x000000u : kind == 1 ? 0xFFFFFFu : *p ^ 0xFFFFFFu;
 }
+static void changed(int x0, int y0, int x1, int y1) {
+    if (x0 < g_dx0) g_dx0 = x0;
+    if (y0 < g_dy0) g_dy0 = y0;
+    if (x1 > g_dx1) g_dx1 = x1;
+    if (y1 > g_dy1) g_dy1 = y1;
+}
 static void draw_pointer(void) {
     if (!g_ptr.shown) return;
     int x0, y0, x1, y1;
     pointer_rect(&x0, &y0, &x1, &y1);
+    changed(x0, y0, x1, y1);
     const hle_cursor_image_t *img = hle_cursor_image(g_ptr.handle);
     if (!img) {
         for (int j = 0; k_arrow[j]; j++)
@@ -99,6 +113,7 @@ static void copy_out(int x0, int y0, int x1, int y1) {
     if (y0 < 0) y0 = 0;
     if (x1 > SCR_W) x1 = SCR_W;
     if (y1 > SCR_H) y1 = SCR_H;
+    changed(x0, y0, x1, y1);
     for (int y = y0; y < y1 && x0 < x1; y++) memcpy(g_out + y * SCR_W + x0, src + y * SCR_W + x0, (size_t)(x1 - x0) * 4);
 }
 
@@ -210,7 +225,50 @@ int madeline_gfx_smooth(int on) {                        /* -1: just ask */
     }
     return g_smooth;
 }
-const uint32_t *madeline_frame(int *w, int *h) { *w = SCR_W, *h = SCR_H; return g_out; }
+
+/* ---- upscale=xbr ----
+ * The presenter shows the window surface it is given, and maps the mouse by
+ * that surface's size: handed a 1280x960 picture, it would tell the game the
+ * mouse was at 1279,959. What it has instead is a hook that turns a 16-bit
+ * screen into a picture twice the size, leaving the mouse alone (made for
+ * another game). So while xBR is on, the presenter is told the screen is a
+ * 16-bit one - a stand-in nobody draws on - and the hook hands it g_big. */
+static void big_update(void) {
+    if (g_dx0 < g_dx1 && g_dy0 < g_dy1) {
+        clock_t t = clock();
+        madeline_xbr2x(g_out, SCR_W, SCR_H, g_big, g_dx0 - 2, g_dy0 - 2, g_dx1 + 2, g_dy1 + 2);
+        if (g_trace) fprintf(stderr, "[gfx] xBR %dx%d: %.1f ms\n", g_dx1 - g_dx0, g_dy1 - g_dy0, 1000.0 * (double)(clock() - t) / CLOCKS_PER_SEC);
+    }
+    g_dx0 = SCR_W, g_dy0 = SCR_H, g_dx1 = g_dy1 = 0;
+}
+static int compose(const uint8_t *px16, int pitch, int w, int h, uint32_t *out) {
+    (void)px16; (void)pitch;
+    if (!g_xbr || w != SCR_W || h != SCR_H) return 0;
+    big_update();
+    memcpy(out, g_big, sizeof g_big);
+    return 1;
+}
+int madeline_gfx_upscale(int on) {                       /* -1: just ask */
+    if (on >= 0 && (on != 0) != g_xbr) {
+        g_xbr = on != 0;
+        if (g_xbr) {
+            changed(0, 0, SCR_W, SCR_H);
+            hle_screen_compose_hook = compose;
+            hle_gdi_window_surface((uint8_t *)g_stand_in, SCR_W, SCR_H, SCR_W * 2, 16);
+        } else {
+            hle_screen_compose_hook = NULL;
+            hle_gdi_window_surface((uint8_t *)g_out, SCR_W, SCR_H, SCR_W * 4, 32);
+        }
+        hle_gdi_window_touched();
+    }
+    return g_xbr;
+}
+/* The picture as it is shown: a screenshot is of what the player sees. */
+const uint32_t *madeline_frame(int *w, int *h) {
+    if (g_xbr) { big_update(); *w = 2 * SCR_W, *h = 2 * SCR_H; return g_big; }
+    *w = SCR_W, *h = SCR_H;
+    return g_out;
+}
 
 void madeline_gfx_init(void) {
     g_trace = getenv("MADELINE_GFXTRACE") != NULL;

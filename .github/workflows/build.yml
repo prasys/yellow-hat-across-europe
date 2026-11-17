@@ -1,0 +1,79 @@
+# Builds the host on each system it is meant for, without a game.
+#
+# The lift of MADEURO.EXE cannot be made here: nobody's disc is in this
+# repository and none may be fetched. `make STUB=1` puts an empty lift in its
+# place, so what is checked is that src/ and the pinned pcrecomp compile and
+# link, that the program starts, and that the launchers build. Whether the
+# game plays is still checked by hand with scripts/playtest.sh.
+name: build
+
+on:
+  push:
+    branches: ["Pradeesh/pollock", main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: SDL
+        run: brew install sdl2 sdl2_ttf pkgconf
+      - name: Engine, with an empty lift
+        run: make -j4 STUB=1
+      - name: It starts
+        run: scripts/smoke.sh build/stub/madeline
+      - name: Launcher and app
+        run: make STUB=1 app
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            make diffutils
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-SDL2
+            mingw-w64-ucrt-x86_64-SDL2_ttf
+      - name: Engine, with an empty lift
+        run: make -j4 STUB=1
+      - name: It starts
+        run: scripts/smoke.sh build/stub/madeline.exe
+      - name: Launcher and app folder
+        run: make STUB=1 app
+
+  # Linux has not been ported yet (docs/briefs/04): this job shows how far the
+  # build gets there, and does not hold a pull request back.
+  linux:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: SDL
+        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev libsdl2-ttf-dev
+      - name: Engine, with an empty lift
+        run: make -j4 STUB=1
+      - name: It starts
+        run: scripts/smoke.sh build/stub/madeline

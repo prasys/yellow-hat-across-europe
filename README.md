@@ -30,6 +30,32 @@ make launch                            # the app: settings and a Play button
 `make launch` builds `build/The Little Girl in the Yellow Hat Across Europe.app`
 and opens it. `make run` starts the game directly instead.
 
+### Windows 10/11, 64-bit
+
+The same program builds for Windows with [MSYS2](https://www.msys2.org/).
+Install it, open **MSYS2 UCRT64** from the Start menu, and:
+
+```sh
+pacman -S --needed make git diffutils mingw-w64-ucrt-x86_64-gcc \
+  mingw-w64-ucrt-x86_64-pkgconf mingw-w64-ucrt-x86_64-SDL2 mingw-w64-ucrt-x86_64-SDL2_ttf \
+  mingw-w64-ucrt-x86_64-python mingw-w64-ucrt-x86_64-python-capstone
+git submodule update --init
+make extract ISO=/c/Users/you/Desktop/Madeline_European_Adventures.iso
+make                                   # lifts MADEURO.EXE, builds build/madeline.exe
+make launch                            # the launcher: settings and a Play button
+```
+
+`make launch` builds the folder `build/app` and opens
+`Yellow Hat Across Europe.exe` in it: the launcher, with the engine and the
+DLLs it needs beside it, so it also starts from Explorer. It can unpack a
+disc image itself (Windows mounts it) and rebuilds the engine for a
+different disc through the MSYS2 it was built with. `make run` starts the
+game directly instead, from the MSYS2 shell. Settings and saves are in
+`%APPDATA%\MadelineEuropeanAdventures`; what the game printed on its last
+run from the launcher is in `last-run.log` there. As on the Mac, `build/app`
+contains code made from your copy of the game: do not pass it on.
+([brief 05](docs/briefs/05-windows-build.md) has what is left.)
+
 `make extract` unpacks the disc into `game/cd/` (git-ignored). If you already
 have the disc's files in a folder, skip it and use `make CD=/that/folder` and
 `build/madeline /that/folder`.
@@ -47,6 +73,7 @@ Playing:
   by the exact name: the game never lists them. To make carrying on easy, the
   name you last saved under is typed into the book for you. Click the red
   arrow, then "old game". Backspace clears it if you want another name.
+- **F8** turns xBR edge redrawing on and off (see Picture modes).
 - **F10** turns picture smoothing on and off, **F11** full screen, **F12**
   cycles the scaling (smooth, sharp, CRT, ...). These are remembered.
   **F9** saves a screenshot (to `screenshots/` beside the saves).
@@ -63,6 +90,7 @@ Options: set them in the launcher, or on the command line, or in
 | `--fullscreen` | `fullscreen=1` | Start full screen |
 | | `remember_name=0` | Do not type the last saved name into the sign-in book |
 | | `smooth=0` | Show the original pixels: no melting of the 256-colour dithering (F10) |
+| | `upscale=xbr` | Redraw edges at twice the size before scaling: slanted ink lines lose their stair-steps (F8). Off by default |
 | | `scale=sharp` | Scaling to the window: `smooth` (default), `sharp`, `crt`, `nearest`, `integer` (F12) |
 | | `bars=black` | Black beside the picture when full screen, instead of a blur of it |
 | *path* | `cd=/path` | The folder with the disc's files |
@@ -116,6 +144,13 @@ for your own machine: do not pass it on.
 **Smoothing** (F10, `smooth=`): on, the 256-colour speckle is melted into flat
 washes of paint and ink lines are kept; off, you see the original pixels.
 
+**xBR** (F8, `upscale=xbr`): off, the 640x480 picture goes to the scaling
+below as it is; on, it is first doubled to 1280x960 by Hyllian's xBR rule,
+which finds diagonal edges and redraws them smooth. Characters and ink
+outlines gain the most; painted backgrounds lose a little brush texture. It
+comes after smoothing and works with or without it. Screenshots (F9) are of
+the doubled picture while it is on.
+
 **Scaling** (F12, `scale=`) is how the 640x480 picture is enlarged to the window:
 
 | Mode | |
@@ -137,6 +172,9 @@ the main menu, sign-in, the options screen, a new game through its opening into
 the Paris station, clicking around a scene, quitting with a save, and loading
 that save with "old game". Sound effects, speech and movie soundtracks play
 through SDL; the MIDI music plays through macOS's built-in synthesizer.
+On Windows 11 the same play-throughs pass and the game has been started in a
+window and looked and listened to once (2026-11-17), through Windows' own
+MIDI synthesizer; it has had far less play there than on the Mac.
 
 Known gaps: printing (the postcards) is not available, and only the first scene has been played by the
 tests. [docs/ROADMAP.md](docs/ROADMAP.md) lists everything still to build.
@@ -153,12 +191,14 @@ your disc ──extract──> game/cd/MADEURO.EXE ──pcrecomp──> build/g
 |---|---|
 | `src/main.c` | Maps your disc as `D:`, a folder in your home as `C:`, boots the image |
 | `src/gfx.c` | The display: GDI + `WING32.DLL` on a palette-indexed 640x480 screen, so palette fades and colour cycling work as on 256-colour Windows; smooths the dithering; draws the mouse pointer |
+| `src/xbr.c` | The optional xBR doubling of the picture |
 | `src/audio.c` | `waveOut` on SDL audio, with buffers reported done when actually heard (the game times animation by it); MCI for the music |
 | `src/midi.c` | Standard MIDI Files on AudioToolbox |
+| `src/win/` | Windows only: the POSIX calls pcrecomp's Win32 layer makes, on the Windows API; MIDI on MCI |
 | `src/platform.c` | Where the player's files live on each system |
 | `src/shims.c` | The CD-ROM drive check, the installer's registry entry, the clock, the window's size |
 | `src/debug.c` | A script driver for tests; screenshots |
-| `launcher/` | The macOS app: a SwiftUI settings window and Play button around the engine |
+| `launcher/` | The macOS app: a SwiftUI settings window and Play button around the engine. `launcher/win/`: the same window on Win32 |
 | `third_party/pcrecomp` | The recompiler and the Win32 layer (submodule) |
 
 [docs/NOTES.md](docs/NOTES.md) has what was learned about the executable;

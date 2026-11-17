@@ -43,8 +43,8 @@ static void shot(const char *file) {
 }
 
 /* A screenshot on request: F9 in the window, or SIGUSR1 from outside
- * (`pkill -USR1 madeline`). It is the game's own 640x480 picture, pointer
- * included, written to <save folder>/screenshots. */
+ * (`pkill -USR1 madeline`). It is the picture as shown, pointer included
+ * (640x480, or 1280x960 with xBR on), written to <save folder>/screenshots. */
 #include <signal.h>
 #include <time.h>
 #include <sys/stat.h>
@@ -53,7 +53,15 @@ static char g_shot_dir[1100];
 static void on_usr1(int sig) { (void)sig; g_shot_wanted = 1; }
 static int on_key(int scancode, int down) {
     if (scancode == 66 /* SDL_SCANCODE_F9 */) { if (down) g_shot_wanted = 1; return 1; }
-    if (scancode == 67 /* SDL_SCANCODE_F10 */) {         /* smoothing on and off, to compare */
+    if (scancode == 65 /* SDL_SCANCODE_F8 */) {          /* xBR on and off, to compare */
+        if (down) {
+            int on = madeline_gfx_upscale(!madeline_gfx_upscale(-1));
+            madeline_ini_set("upscale", on ? "xbr" : "off");
+            fprintf(stderr, "[gfx] xBR %s\n", on ? "on" : "off");
+        }
+        return 1;
+    }
+    if (scancode == 67 /* SDL_SCANCODE_F10 */) {        /* smoothing on and off, to compare */
         if (down) {
             int on = madeline_gfx_smooth(!madeline_gfx_smooth(-1));
             madeline_ini_set("smooth", on ? "1" : "0");
@@ -65,7 +73,11 @@ static int on_key(int scancode, int down) {
 }
 void madeline_screenshots_init(const char *save_root) {
     snprintf(g_shot_dir, sizeof g_shot_dir, "%s/screenshots", save_root);
+#ifdef SIGUSR1                                  /* not on Windows: F9 only there */
     signal(SIGUSR1, on_usr1);
+#else
+    (void)on_usr1;
+#endif
     hle_screen_key_hook = on_key;
 }
 static void shot_if_wanted(void) {
