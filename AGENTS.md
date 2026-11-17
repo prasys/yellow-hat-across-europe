@@ -67,6 +67,7 @@ that reaches the code you changed and look at the screenshots.
 |---|---|
 | `src/main.c` | Entry: drive mapping (`D:` = disc, `C:` = save folder), shim registration order, boot |
 | `src/gfx.c` | All of GDI32 + WING32 + `GetDC`/`ReleaseDC`, on a palette-indexed 640x480 screen |
+| `src/xbr.c` | `upscale=xbr`: the finished picture doubled by the xBR rule, for the changed part only, on a few threads. `gfx.c` hands it to the presenter through its 16-bit "compose" hook, which is why the mouse still counts 640x480 (see the comment there). `MADELINE_UPSCALE=xbr` for tests: `shot` then writes 1280x960; `MADELINE_GFXTRACE=1` prints its timings |
 | `src/audio.c` | `waveOut*` on SDL (via win32hle's stream mixer) and `mciSendCommandA` |
 | `src/midi.c` | MIDI files on AudioToolbox; silent stand-in elsewhere |
 | `src/shims.c` | CD drive type, registry, the clock + idle throttle, window maximize |

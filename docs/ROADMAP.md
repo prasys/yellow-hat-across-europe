@@ -88,11 +88,24 @@ Ordered by how much each matters to someone actually playing.
       the presenter scales smoothly, blurred bars when full screen. Pixel-art
       scalers (xBR, hqx) were tried on a captured frame and rejected: they
       turn the dither into a wormy texture.
-- [ ] **Sharper smooth scaling.** The smoothing runs at 640x480 and the
-      window scaling is plain bilinear, so outlines are a little soft. Next
-      steps: produce the picture at 2x in the host (needs the mouse mapping
-      halved: the presenter maps the window to the surface's size), or a
-      line-art shader (Anime4K) once there is a shader path.
+- [x] **xBR after smoothing** (2026-11-17): `upscale=xbr` (F8, a box in the
+      Windows launcher), off by default. `src/xbr.c` doubles the smoothed
+      picture with Hyllian's xBR rule; on the picture after smoothing it does
+      not make the worms it made of the raw dither. About 7 ms for a whole
+      screen on 8 threads (Windows 11 desktop), changed parts only. It reaches
+      the presenter through its 16-bit compose hook, so the mouse is
+      untouched. Chosen over Anime4K after a side-by-side on six screens
+      (Anime4K's shaders run through ffmpeg's libplacebo): Anime4K kept more
+      brush texture but did less for the characters' outlines, its sharpest
+      mode damaged small text, and it needs a neural network on the CPU or a
+      shader path. Checked: headless shots, one look at a real window on
+      Windows, a save and quit with it on. Not yet: played through with it
+      on, the movies watched for speed, macOS or Linux built with it.
+- [ ] xBR, left: a toggle in the macOS launcher (it keeps the `upscale=`
+      line but shows no control); 3x or 4x for very large screens; Anime4K
+      as a second choice if a shader path ever exists.
+- [ ] `scripts/playtest.sh` cannot make its contact sheet with ffmpeg builds
+      that lack file-pattern input (MSYS2's): the shots are still written.
 - [x] **Intro skip** (2026-11-15): `--skip-intro` or `skip_intro=1` in
       `madeline.ini`. The original already stops a movie on Enter; the host
       presses it for the two opening movies. Uses two addresses from this
@@ -177,6 +190,9 @@ Offer these to sp00nznet/pcrecomp rather than keep them private forever:
 - A real palette-device mode (`RC_PALETTE`, `AnimatePalette` reaching pixels
   already on screen); `gfx.c` is one self-contained way to do it.
 - `GetDriveTypeA` able to report a mapped drive as a CD-ROM.
+- A presenter that takes a host-made picture larger than the screen for a
+  32-bit surface: `hle_screen_compose_hook` is only asked for 16-bit ones,
+  so `gfx.c` gives it a 16-bit stand-in screen while xBR is on.
 - An idle throttle for games that spin on `PeekMessage`/`timeGetTime`.
 
 ## Out of scope

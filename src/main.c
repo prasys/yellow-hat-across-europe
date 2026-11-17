@@ -10,7 +10,7 @@
  *   madeline [--skip-intro] [--fullscreen|--windowed] [--headless] <path to the extracted CD>
  *
  * The same choices can be kept in madeline.ini in the save folder
- * (skip_intro, fullscreen, remember_name, smooth, scale, bars); the command
+ * (skip_intro, fullscreen, remember_name, smooth, upscale, scale, bars); the command
  * line wins.
  *
  * No game data is built into this program: it maps MADEURO.EXE from the CD
@@ -179,6 +179,13 @@ int main(int argc, char **argv) {
     recomp_host_init();
     madeline_gfx_init();
     madeline_gfx_smooth(smooth);
+    {
+        /* upscale=xbr: the picture doubled with its edges redrawn (xbr.c). Off unless asked for. */
+        char upscale[32] = "";
+        const char *e = getenv("MADELINE_UPSCALE");
+        if (e) snprintf(upscale, sizeof upscale, "%s", e); else ini_get("upscale", upscale, sizeof upscale);
+        madeline_gfx_upscale(!strcmp(upscale, "xbr"));
+    }
     /* The picture is 640x480 on a display many times that: it is scaled up
      * smoothly unless the player chose otherwise (F12), with a blur of itself
      * beside it where the screen is wider. */
