@@ -12,6 +12,11 @@ and linked against a small host that plays the part of Windows 95: a 640x480
 art or sound, and neither does the program it builds: the lift is made on your
 machine from your disc, and the game's data is read from your disc at run time.
 
+The game has been out of print for decades. If you no longer have your disc, an
+image of it is listed at
+[Old Games Download](https://oldgamesdownload.com/game/madeline-european-adventures-u9z/)
+(the Windows ISO, English). This project is not connected with that site.
+
 ## Quick start (macOS, Apple silicon or Intel)
 
 ```sh
