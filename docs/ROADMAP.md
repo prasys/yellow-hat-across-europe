@@ -165,9 +165,14 @@ Order: Linux, then Windows. Full checklists are in the briefs; the summary:
 
 - [ ] **First commit.** Nothing is committed yet (submodule staged, the rest
       untracked).
-- [ ] **CI** that builds the host without a game: the lift cannot run in CI,
-      so it needs a stub `build/gen` (an empty dispatch table) to at least
-      compile and link `src/` against the pinned pcrecomp.
+- [x] **CI** that builds the host without a game (2026-11-17):
+      `.github/workflows/build.yml`. `make STUB=1` puts an empty lift in
+      `build/stub`, so `src/` compiles and links against the pinned pcrecomp;
+      `scripts/smoke.sh` checks the program starts; the launchers are built.
+      macOS and Windows must pass; Linux runs but may fail until brief 04.
+- [ ] CI, left: nothing in it plays the game (it has none). Tests that need
+      no game would add to it: xBR on a made-up picture, the settings file,
+      win32hle's selftests.
 - [ ] **Pin and bump pcrecomp deliberately**: the submodule tracks a commit;
       upstream moves fast (see its CHANGELOG) and an update can change the
       lifter's output or a shim this host relies on.
