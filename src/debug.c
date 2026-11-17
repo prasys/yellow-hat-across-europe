@@ -65,7 +65,11 @@ static int on_key(int scancode, int down) {
 }
 void madeline_screenshots_init(const char *save_root) {
     snprintf(g_shot_dir, sizeof g_shot_dir, "%s/screenshots", save_root);
+#ifdef SIGUSR1                                  /* not on Windows: F9 only there */
     signal(SIGUSR1, on_usr1);
+#else
+    (void)on_usr1;
+#endif
     hle_screen_key_hook = on_key;
 }
 static void shot_if_wanted(void) {

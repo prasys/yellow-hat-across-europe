@@ -116,11 +116,35 @@ Order: Linux, then Windows. Full checklists are in the briefs; the summary:
 
 **Windows** ([brief 05](briefs/05-windows-build.md)) - a real port:
 
-- [ ] Interim: the Linux build under WSL2/WSLg, documented.
-- [ ] MinGW-w64 build of the same host (not pcrecomp's `native32`): a POSIX
+- [ ] Interim: the Linux build under WSL2/WSLg, documented. (Skipped: the
+      real port below was done first.)
+- [x] MinGW-w64 build of the same host (not pcrecomp's `native32`): a POSIX
       compatibility layer in `src/win/` for win32hle (`mmap` on
-      `VirtualAlloc`, no sockets, small libc gaps).
-- [ ] MIDI through the real `winmm`; launcher; packaging; CI job.
+      `VirtualAlloc`, no sockets, small libc gaps). Built in MSYS2 UCRT64 on
+      Windows 11 x64 (2026-11-17); headless playtests pass: start-up, menu,
+      sign-in, new game to the Paris station, quit with a save, "old game".
+- [x] Started in a window by a person and reported good, picture and sound
+      (2026-11-17, Direct3D 11 and WASAPI through sdl2-compat). That was one
+      short look: the F-keys, the close dialog and a long sitting have not
+      been gone through one by one.
+- [x] MIDI through the real `winmm` (`src/win/midi_win.c`, MCI sequencer).
+- [x] **Launcher** (2026-11-17): `launcher/win/launcher.c`, the Mac
+      launcher's window on plain Win32 (disc image or folder, settings, saved
+      games, Play, build the engine for another disc). `make app` puts it in
+      `build/app/` with the engine and the DLLs it needs. Checked by pictures
+      of its window and by pressing its controls from a script against a test
+      folder: unpacking a disc image, the settings file, Play (a headless game
+      to the station and a save), the build. Nobody has used it by hand yet.
+- [ ] Launcher, left: the program file has no icon of its own in Explorer
+      (the window's is drawn at run time); a disc folder with a space in its
+      path cannot be given to `make` (a user name with a space puts one in
+      `%APPDATA%`); the window is laid out for the main display's scaling
+      only.
+- [ ] A version to hand out: it must lift on the player's machine, which
+      today needs MSYS2 and this checkout. CI job; win32hle's selftests on
+      Windows.
+- [ ] Paths with non-ASCII characters (a user folder named in another
+      script): the compatibility layer uses the ANSI file calls.
 
 **Intel Macs**: should work unchanged; untested.
 
@@ -145,6 +169,11 @@ Offer these to sp00nznet/pcrecomp rather than keep them private forever:
 - A `waveOut` that plays, with `WHDR_DONE` on playback (`winmm.c`'s is silent).
 - `mciSendCommandA` for the `sequencer` device.
 - `WING32.DLL`, and `StretchDIBits` for 8-bit DIBs with `DIB_PAL_COLORS`.
+- A Windows (MinGW-w64) host for win32hle: `src/win/` is that, kept outside
+  the submodule. Upstream it would be `_WIN32` branches in `guest_mem.c`
+  (`VirtualAlloc`), `hle_path.c` (drive-letter paths, `d_type`),
+  `kernel32_ext.c` (`st_mtim`, `tm_gmtoff`, `statvfs`) and `kernel32.c`
+  (the program's own path), and `wsock32.c` on Winsock.
 - A real palette-device mode (`RC_PALETTE`, `AnimatePalette` reaching pixels
   already on screen); `gfx.c` is one self-contained way to do it.
 - `GetDriveTypeA` able to report a mapped drive as a CD-ROM.

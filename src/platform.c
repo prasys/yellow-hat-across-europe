@@ -6,8 +6,8 @@
  *   Linux    $XDG_DATA_HOME/madeline-european-adventures  (~/.local/share/...)
  *   Windows  %APPDATA%\MadelineEuropeanAdventures
  *
- * MADELINE_SAVE_DIR overrides all three (the tests use it). Only the macOS
- * branch has been run so far; see docs/briefs/04 and 05.
+ * MADELINE_SAVE_DIR overrides all three (the tests use it). The macOS and
+ * Windows branches have been run; Linux not yet (docs/briefs/04).
  */
 #include <stdio.h>
 #include <stdlib.h>

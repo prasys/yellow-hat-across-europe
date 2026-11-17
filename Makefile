@@ -12,21 +12,38 @@ GENOPT   ?= -O1
 # The guest's 4 GB sits at one fixed host address (pcrecomp's "based" memory).
 DEFS     := -DRECOMP_MEM_BASE=0x100000000000ull
 SDL      := $(shell pkg-config --cflags sdl2 SDL2_ttf)
-LIBS     := $(shell pkg-config --libs sdl2 SDL2_ttf) -lpthread -lm
-ifeq ($(shell uname -s),Darwin)
-LIBS     += -framework AudioToolbox -framework CoreFoundation
-endif
+UNAME    := $(shell uname -s)
 WARN     := -Wall -Wno-unused-function -Wno-unused-but-set-variable -Wno-unused-variable -Wno-unused-label
 CFLAGS   := $(DEFS) -I$(PCRECOMP)/runtime/recomp32 -I$(HLE) -Isrc -Ibuild/gen $(SDL)
-
 HLE_SRC  := $(filter-out %_selftest.c,$(wildcard $(HLE)/*.c))
+HOST_SRC := $(wildcard src/*.c)
+ifneq (,$(findstring MINGW,$(UNAME)))
+# Windows, in an MSYS2 UCRT64 shell (docs/briefs/05). win32hle is written for
+# POSIX: src/win goes first on the include path and supplies what MinGW lacks
+# (src/win/compat_win.h says how). Its sockets file is left out; the game has
+# no network. SDL is linked without SDL2main: main() is the program's own, and
+# it stays a console program so what it prints can be read.
+EXE      := .exe
+CFLAGS   := -Isrc/win -D_FILE_OFFSET_BITS=64 -DSDL_MAIN_HANDLED $(CFLAGS)
+HLE_SRC  := $(filter-out %/wsock32.c,$(HLE_SRC))
+HOST_SRC += $(wildcard src/win/*.c)
+LIBS     := -lSDL2_ttf -lSDL2 -lwinmm -lpthread -lm
+else
+EXE      :=
+LIBS     := $(shell pkg-config --libs sdl2 SDL2_ttf) -lpthread -lm
+ifeq ($(UNAME),Darwin)
+LIBS     += -framework AudioToolbox -framework CoreFoundation
+endif
+endif
+BIN      := build/madeline$(EXE)
+
 HLE_OBJ  := $(patsubst $(HLE)/%.c,build/obj/hle/%.o,$(HLE_SRC))
-SRC_OBJ  := $(patsubst src/%.c,build/obj/src/%.o,$(wildcard src/*.c))
+SRC_OBJ  := $(patsubst src/%.c,build/obj/src/%.o,$(HOST_SRC))
 GEN_OBJ  := build/obj/gen/recomp_0000.o build/obj/gen/recomp_dispatch.o
 
-all: build/madeline
+all: $(BIN)
 
-build/madeline: $(HLE_OBJ) $(SRC_OBJ) $(GEN_OBJ)
+$(BIN): $(HLE_OBJ) $(SRC_OBJ) $(GEN_OBJ)
 	$(CC) -o $@ $^ $(LIBS)
 
 build/obj/hle/%.o: $(HLE)/%.c
@@ -61,9 +78,39 @@ $(CD)/MADEURO.EXE:
 	@echo "No game found in $(CD). Unpack your own disc first:"; echo "  make extract ISO=/path/to/your.iso"; exit 1
 extract:
 	scripts/extract_iso.sh "$(ISO)" $(CD)
-run: build/madeline
-	build/madeline "$(CD)"
+run: $(BIN)
+	$(BIN) "$(CD)"
 
+ifneq (,$(findstring MINGW,$(UNAME)))
+# The launcher (Windows): a Win32 window for the settings and a Play button
+# (launcher/win), put in a folder with the engine and the DLLs the engine
+# needs, so it starts from Explorer. SDL2 there is sdl2-compat, which loads
+# SDL3.dll by name at run time: ldd does not show it, so it is named here.
+# The folder holds the lift of the player's own game: do not hand it on.
+APP      := build/app
+APPEXE   := Yellow Hat Across Europe.exe
+build/obj/launcher_res.o: launcher/win/launcher.rc launcher/win/launcher.manifest
+	@mkdir -p $(@D)
+	windres -I launcher/win $< -o $@
+build/launcher.exe: launcher/win/launcher.c build/obj/launcher_res.o
+	$(CC) -O2 -Wall -municode -mwindows -static -o $@ $^ -lcomctl32 -lcomdlg32 -lshell32 -lole32 -lgdi32 -lmsimg32
+# Files are copied over an existing folder rather than the folder being replaced:
+# the launcher runs `make engine-into-app` when a disc needs its engine built.
+app: $(BIN) build/launcher.exe
+	@mkdir -p "$(APP)"
+	cp $(BIN) "$(APP)/"
+	cp build/launcher.exe "$(APP)/$(APPEXE)"
+	@ldd $(BIN) "$$MINGW_PREFIX/bin/SDL3.dll" | awk -v p="$$MINGW_PREFIX/" 'index($$3, p) == 1 { print $$3 }' | sort -u | while read -r f; do cp "$$f" "$(APP)/"; done
+	@cp "$$MINGW_PREFIX/bin/SDL3.dll" "$(APP)/"
+	@cygpath -m "$$(pwd)" > "$(APP)/source-root.txt"
+	@cygpath -m / > "$(APP)/msys-root.txt"
+	@echo "built $(APP)/$(APPEXE)"
+engine-into-app: $(BIN)
+	@mkdir -p "$(APP)"
+	cp $(BIN) "$(APP)/"
+launch: app
+	"$(APP)/$(APPEXE)" &
+else
 # The launcher (macOS): a SwiftUI window for the settings and a Play button,
 # wrapped with the engine as an app. The app holds the lift of the player's
 # own game, so it is for the machine it was built on: do not hand it on.
@@ -96,6 +143,7 @@ engine-into-app: build/madeline
 	cp build/madeline "$(APP)/Contents/MacOS/madeline"
 launch: app
 	open "$(APP)"
+endif
 clean:
 	rm -rf build
 .PHONY: all lift extract run app engine-into-app launch clean FORCE
