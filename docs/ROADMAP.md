@@ -78,6 +78,39 @@ Ordered by how much each matters to someone actually playing.
       the sign-in book (`remember_name`, on by default). A picker for several
       players' names is not built: the book would need text drawn on its
       right-hand page.
+- [x] **Game controller and a keyboard on the screen** (2026-11-21, issue
+      7): `src/pad.c` turns a controller into the mouse and a few keys
+      (`gamepad=0` turns it off, a switch in both launchers); `src/osk.c`
+      draws a keyboard over the sign-in book for a player using a pad or a
+      touch screen, and takes its own clicks out of the game's messages.
+      Checked headless, with the script's new `pad` and `touch` verbs: the
+      pointer moved by cross and both sticks, the title to the options
+      screen with the pad alone, a name typed by pad and by taps (capitals,
+      Backspace, hide, move, the tab that reopens it), with xBR on, and that
+      a mouse-and-keys run shows no keyboard. The windowed start-up path ran
+      under SDL's dummy drivers with no pad attached.
+- [ ] Controller and touch, to try by hand (nobody has: no real pad or
+      touch screen has been near it).
+      - A pad plugged in before starting and one plugged in while playing
+        are both found (`[pad] <name>` in the log); pulled out and put back.
+      - The pointer's speed feels right on the left stick, the right stick
+        and the cross; A held and moved drags (painting).
+      - A whole sitting with the pad alone: title, name, new game, a scene,
+        MENU, QUIT, and the save is there. On the Steam Deck too.
+      - Back toggles full screen.
+      - A touch screen: a tap clicks where the finger is, the keyboard
+        comes up at the book, its keys are big enough for a finger, and a
+        mouse click or a real key puts it away. Whether Windows reports a
+        finger as SDL's touch at all through sdl2-compat is not known; if
+        not, the keyboard never shows there.
+      - The Windows launcher's new box (built by nobody yet: no Windows
+        machine in this change).
+- [ ] Controller and touch, left: a first key tapped while the book is
+      still asking "what's your name?" is lost, as a real key is (the
+      keyboard could wait for the speech to end, if that can be read);
+      screen 14 takes typing and only gets the small tab that opens the
+      keyboard, since nobody has seen it; no way to rebind buttons; a
+      shoulder button to jump between hot spots (needs the mask); no rumble.
 - [ ] **A way to save without quitting.** The game only saves on MENU → QUIT.
       Options, cheapest first: (a) make Esc in a scene open the game's own
       menu, by having the host click the MENU button; (b) a host "save and
@@ -228,6 +261,12 @@ Offer these to sp00nznet/pcrecomp rather than keep them private forever:
   32-bit surface: `hle_screen_compose_hook` is only asked for 16-bit ones,
   so `gfx.c` gives it a 16-bit stand-in screen while xBR is on.
 - An idle throttle for games that spin on `PeekMessage`/`timeGetTime`.
+- The case of a typed letter decided when the key is queued, not when it is
+  translated (or a `hle_input_char`): see `madeline_type` in `shims.c`.
+- A hook that lets a host keep an input message from the guest; here it is
+  done by wrapping `PeekMessageA`.
+- Game controller events are dropped by `hle_screen_pump`; `pad.c` polls
+  state and looks for a new pad once a second instead of hearing of it.
 
 ## Out of scope
 

@@ -115,6 +115,7 @@ static void copy_out(int x0, int y0, int x1, int y1) {
     if (y1 > SCR_H) y1 = SCR_H;
     changed(x0, y0, x1, y1);
     for (int y = y0; y < y1 && x0 < x1; y++) memcpy(g_out + y * SCR_W + x0, src + y * SCR_W + x0, (size_t)(x1 - x0) * 4);
+    if (x0 < x1 && y0 < y1) madeline_osk_paint(g_out, x0, y0, x1, y1);    /* the keyboard on the screen lies over the picture, under the pointer */
 }
 
 /* ---- smoothing ----
@@ -169,6 +170,16 @@ void madeline_gfx_pointer(void) {
     pointer_rect(&x0, &y0, &x1, &y1);
     copy_out(x0, y0, x1, y1);                            /* the picture back where the pointer was */
     g_ptr.shown = shown, g_ptr.x = x, g_ptr.y = y, g_ptr.handle = handle;
+    draw_pointer();
+    hle_gdi_window_touched();
+}
+
+/* The host's own drawing over the picture changed (osk.c): that part again. */
+void madeline_gfx_redraw(int x0, int y0, int x1, int y1) {
+    int px0, py0, px1, py1;
+    pointer_rect(&px0, &py0, &px1, &py1);
+    if (g_ptr.shown) copy_out(px0, py0, px1, py1);
+    copy_out(x0, y0, x1, y1);
     draw_pointer();
     hle_gdi_window_touched();
 }

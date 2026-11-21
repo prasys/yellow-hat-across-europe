@@ -31,7 +31,7 @@
 
 enum {
     ID_PLAY = 1,                       /* IDOK: Enter presses it */
-    ID_CHOOSE = 100, ID_BUILD, ID_OPEN, ID_SKIP, ID_NAME, ID_FULL, ID_SMOOTH, ID_XBR, ID_SCALE, ID_BARS, ID_SAVES,
+    ID_CHOOSE = 100, ID_BUILD, ID_OPEN, ID_SKIP, ID_NAME, ID_FULL, ID_SMOOTH, ID_XBR, ID_PAD, ID_SCALE, ID_BARS, ID_SAVES,
     ID_DISC_STATUS = 200, ID_ENGINE_STATUS, ID_STATUS,
     ID_HINT = 300, ID_TEXT = 400,
     IDM_IMAGE = 500, IDM_FOLDER,
@@ -53,7 +53,7 @@ static const wchar_t *const SCALE_LABELS[] = { L"Smooth", L"Sharp", L"CRT monito
 #define KEYS_HINT L"F8 xBR  \u00B7  F9 screenshot  \u00B7  F10 smoothing  \u00B7  F11 full screen  \u00B7  F12 scaling"
 
 static HWND g_wnd, g_disc_status, g_disc_path, g_engine_status, g_engine_hint, g_choose, g_build, g_open,
-            g_skip, g_name, g_full, g_smooth, g_xbr, g_scale, g_bars, g_saves, g_status, g_play;
+            g_skip, g_name, g_full, g_smooth, g_xbr, g_pad, g_scale, g_bars, g_saves, g_status, g_play;
 static HFONT g_font, g_bold, g_title, g_subtitle, g_playfont;
 static HBRUSH g_white;
 static int g_dpi = 96;
@@ -163,6 +163,7 @@ static void save_settings(void) {
     ini_set("remember_name", checked(g_name) ? "1" : "0");
     ini_set("smooth", checked(g_smooth) ? "1" : "0");
     ini_set("upscale", checked(g_xbr) ? "xbr" : "off");
+    ini_set("gamepad", checked(g_pad) ? "1" : "0");
     ini_set("scale", scale);
     ini_set("bars", SendMessageW(g_bars, CB_GETCURSEL, 0, 0) == 1 ? "black" : "blur");
     if (!ini_write()) say(L"Could not save the settings.");
@@ -176,6 +177,7 @@ static void load_settings(int first) {
         for (wchar_t *p = g_disc; *p; p++) if (*p == L'/') *p = L'\\';
         check(g_skip, ini_flag("skip_intro", 0));
         check(g_name, ini_flag("remember_name", 1));
+        check(g_pad, ini_flag("gamepad", 1));
     }
     check(g_full, ini_flag("fullscreen", 0));
     check(g_smooth, ini_flag("smooth", 1));
@@ -567,6 +569,7 @@ static void create(void) {
     g_skip = checkbox(L"Skip the opening movies", L, 248, 284, ID_SKIP);
     g_name = checkbox(L"Fill in my name on the sign-in book", L, 274, 284, ID_NAME);
     g_full = checkbox(L"Start in full screen", L, 300, 284, ID_FULL);
+    g_pad = checkbox(L"Play with a game controller", L, 326, 284, ID_PAD);
 
     label(L"Picture", R, 226, 280, 18, ID_TEXT, g_bold);
     g_smooth = checkbox(L"Smooth the painting", R, 248, 284, ID_SMOOTH);
@@ -619,7 +622,7 @@ static LRESULT CALLBACK wndproc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp) {
             ShellExecuteW(wnd, L"open", dir, NULL, NULL, SW_SHOWNORMAL);
             return 0;
         }
-        case ID_SKIP: case ID_NAME: case ID_FULL: case ID_SMOOTH: case ID_XBR:
+        case ID_SKIP: case ID_NAME: case ID_FULL: case ID_SMOOTH: case ID_XBR: case ID_PAD:
             if (HIWORD(wp) == BN_CLICKED) { save_settings(); update(); }
             return 0;
         case ID_SCALE: case ID_BARS:

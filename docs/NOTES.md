@@ -102,6 +102,13 @@ and what a key does depends on the current screen, the word at `0x41E540`
 | 14, 34, 39 | text | typed into the screen (the name, in 39) |
 | a scene (5, ...) | any, Esc included | nothing |
 
+Screen 34 is the Word Game (`MAD340`): it draws a keyboard of its own to
+click, so it can be played with the mouse alone. Screen 14 has not been
+reached, so what it types into is not known. `PeekMessageA` is the only call
+the game reads messages with (no `GetMessage`, no `GetAsyncKeyState`): a
+host that wants a message for itself can take it there (`m_PeekMessageA` in
+`shims.c` does, for the keyboard the host draws).
+
 `0x421D84` is non-zero while a movie plays; `0x41E1CC` counts the start-up
 steps (1 and 2 as the two opening movies start). `--skip-intro` watches those
 two and presses Enter; it changes nothing in the game.
@@ -188,6 +195,13 @@ Word Game to `MAD340`.
 - macOS ships GNU Make 3.81: no grouped targets (`&:`).
 - "The intro cannot be skipped" was wrong for an hour: the keys were pressed
   while the window was still 0x0 and unfocused. Enter and Esc both work.
+- A capital typed by the host came out small: `hle_input_key` for Shift down,
+  the letter, Shift up, all at once. win32hle picks the case when the game
+  *translates* the key press, from Shift as it is then, and by then Shift
+  was up again. `remember_name` had this from the start: a save signed
+  "Max" got an "m" typed, which no longer matched, and the host gave up.
+  `madeline_type` keeps Shift down until the game has read the key's
+  release.
 - `recomp_lookup_import(va)` returns one shared entry function and *selects*
   the shim as a side effect. Cache the address, not the function pointer:
   calling a cached pointer runs whichever shim was looked up last (here, the

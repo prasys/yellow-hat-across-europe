@@ -76,7 +76,9 @@ that reaches the code you changed and look at the screenshots.
 | `src/print.c` | The printer: `GetProfileStringA` (WIN.INI's default printer), `CreateDCA`, `StartDocA`...`EndDoc`, and the printer's share of `GetDeviceCaps` / `StretchDIBits` / `DeleteDC`, which `gfx.c` passes on by the DC handle. One page, written as a PDF to `<data folder>/prints`, then `madeline_print_hand_over` (not when headless): the print dialog in `src/mac/print_mac.m` (Objective-C, the only such file), `ShellExecute` in `src/win/print_win.c`, `xdg-open` in `platform.c`. `MADELINE_GFXTRACE=1` shows its calls |
 | `src/audio.c` | `waveOut*` on SDL (via win32hle's stream mixer) and `mciSendCommandA` |
 | `src/midi.c` | MIDI files on AudioToolbox; silent stand-in elsewhere |
-| `src/shims.c` | CD drive type, registry, the clock + idle throttle, window maximize |
+| `src/shims.c` | CD drive type, registry, the clock + idle throttle, window maximize, `madeline_type` (a key pressed for the player; use it for anything that needs Shift), the `PeekMessageA` wrapper |
+| `src/pad.c` | A game controller as the mouse and a few keys (`gamepad=0` is off), polled through `hle_screen_poll_hook`; and `madeline_input_device`: whether the player is on mouse and keys, touch or a pad. The script's `pad` verb feeds the same state |
+| `src/osk.c` | The keyboard drawn on the screen (own 5x7 font) where the game wants typing and the player has no keys: the sign-in book. `gfx.c` paints it over the picture (`copy_out`), under the pointer; its clicks are taken out of the game's messages in the `PeekMessageA` wrapper |
 | `src/platform.c` | Per-system data folder (macOS / XDG / `%APPDATA%`), `mkdir -p`. New OS differences go here, not in `#ifdef`s scattered through the other files |
 | `src/debug.c` | `MADELINE_SCRIPT` test driver; F9 / `SIGUSR1` screenshots |
 | `src/madeline.h` | What the files above share |
@@ -142,7 +144,9 @@ that reaches the code you changed and look at the screenshots.
 3. Switches: `MADELINE_TRACE=1` (every import), `HLE_FILETRACE=1`,
    `HLE_MSGTRACE=1` (dispatched messages; mouse messages are not shown),
    `MADELINE_GFXTRACE=1`, `MADELINE_AUDIOTRACE=1|2`. Script verbs: `click`,
-   `move`, `key`, `type`, `shot`, `peek ADDR`, `win`, `close`, `quit` (`src/debug.c`).
+   `move`, `key`, `type`, `touch X Y` (a tap: a click from a player with no
+   keys), `pad BUTTON [MS]` / `pad stick X Y MS` (a controller), `shot`,
+   `peek ADDR`, `win`, `close`, `quit` (`src/debug.c`).
 4. Printing: the script in `docs/NOTES.md` ("Printing") reaches the painting
    screen's Print button in about a minute. Headless, Yes is answered for
    you and the page lands in `OUT/save/prints/*.pdf` with no dialog; turn it

@@ -72,7 +72,6 @@ uint64_t madeline_clock_ns(void) {
  * step counter (0, then 1 and 2 as each movie starts) and "a movie is
  * playing". On another build the option does nothing useful - check them. */
 #define G_INTRO_STEP    0x0041E1CCu
-#define G_MOVIE_PLAYING 0x00421D84u
 int madeline_skip_intro;
 static void skip_intro_tick(uint32_t now) {
     static uint32_t pressed_at;
@@ -87,6 +86,23 @@ static void skip_intro_tick(uint32_t now) {
     hle_input_key(0, 0x0D, 0x1C);
 }
 
+/* A key pressed for the player (a remembered name, the keyboard on the
+ * screen). A capital needs Shift, and win32hle decides the letter's case when
+ * the game translates the key press, from Shift as it is at that moment, not
+ * as it was when the key was queued: Shift pressed and let go around the key
+ * all at once gives a small letter. So Shift stays down until the game has
+ * taken the key's release out of its queue (the PeekMessageA shim sees it
+ * go), or for three seconds if it never does. */
+#define WM_KEYUP 0x0101u
+static uint32_t g_shift_for, g_shift_at;                 /* the key Shift is held for, and since when */
+void madeline_type(uint32_t vk, int shifted) {
+    if (shifted && !g_shift_for) hle_input_key(1, 0x10, 0);
+    hle_input_key(1, vk, 0);
+    hle_input_key(0, vk, 0);
+    if (shifted) g_shift_for = vk, g_shift_at = (uint32_t)(madeline_clock_ns() / 1000000u);
+}
+static void shift_release(void) { g_shift_for = 0; hle_input_key(0, 0x10, 0); }
+
 /* Remembering the player. The sign-in book only ever shows an empty NAME
  * line: the game finds a saved game by the exact name typed, and never lists
  * the names it has. So that carrying on does not depend on spelling a name
@@ -96,9 +112,6 @@ static void skip_intro_tick(uint32_t now) {
  *
  * A save starts with the name (NUL-terminated, 16 bytes); a non-zero word at
  * 0xF0 marks one the game will discard. */
-#define G_SCREEN        0x0041E540u      /* word: MADnnn / 10 */
-#define G_INPUT_ENABLED 0x00421C80u
-#define SCREEN_SIGN_IN  39
 int madeline_remember_name = 1;
 char madeline_save_dir[1024];            /* host path of the folder the .sav files are in */
 static int last_player(char *name, size_t n) {
@@ -147,10 +160,7 @@ static void remember_name_tick(uint32_t now) {
     int upper = c >= 'A' && c <= 'Z';
     uint32_t vk = c >= 'a' && c <= 'z' ? (uint32_t)(c - 32) : upper || (c >= '0' && c <= '9') || c == ' ' ? (uint32_t)c : c == '.' ? 0xBEu : 0;
     if (!vk) { madeline_remember_name = 0; return; }
-    if (upper) hle_input_key(1, 0x10, 0);
-    hle_input_key(1, vk, 0);
-    hle_input_key(0, vk, 0);
-    if (upper) hle_input_key(0, 0x10, 0);
+    madeline_type(vk, upper);
     typed = (int)n, pressed_at = now;
 }
 
@@ -171,6 +181,9 @@ static uint32_t idle_tick(void) {
     madeline_debug_tick(now);
     skip_intro_tick(now);
     remember_name_tick(now);
+    if (g_shift_for && (int32_t)(now - g_shift_at) >= 3000) shift_release();   /* signed: the press may be a millisecond after this tick's now */
+    madeline_pad_tick(now);
+    madeline_osk_tick(now);
     madeline_gfx_pointer();
     return now;
 }
@@ -234,6 +247,23 @@ static void m_DefWindowProcA(void) {                     /* (hwnd, msg, wparam, 
     stock_shim_call(stock);
 }
 
+/* The game's messages, watched as it removes them from the queue (PeekMessageA
+ * is the only way this game reads them).
+ * A press on the host's keyboard (osk.c) is not the game's: the message is
+ * taken as the game removes it from the queue, whichever of the mouse, a
+ * finger, the pad or a test script made it, and WM_NULL is left in its place
+ * (the game's window procedure passes that on to DefWindowProc). */
+static void m_PeekMessageA(void) {                       /* (msg, hwnd, min, max, remove) */
+    static uint32_t stock;
+    uint32_t msg = A32(0), remove = A32(4) & 1;
+    if (!stock) stock = stock_shim_va("PeekMessageA");
+    stock_shim_call(stock);
+    if (!g_eax || !remove || !msg) return;
+    if (g_shift_for && MEM32(msg + 4) == WM_KEYUP && MEM32(msg + 8) == g_shift_for) shift_release();
+    uint32_t l = MEM32(msg + 12);
+    if (madeline_osk_message(MEM32(msg + 4), (int16_t)(l & 0xFFFF), (int16_t)(l >> 16))) MEM32(msg + 4) = 0;
+}
+
 /* Message boxes. win32hle prints them and answers Yes/OK; this game's are few
  * and matter (the question above; "CD-ROM missing"), so they are shown. */
 int madeline_headless;
@@ -261,7 +291,7 @@ static void m_MessageBoxA(void) {                        /* (hwnd, text, caption
 }
 
 const win32hle_shim madeline_shims[] = {
-    { "DefWindowProcA", m_DefWindowProcA }, { "MessageBoxA", m_MessageBoxA },
+    { "DefWindowProcA", m_DefWindowProcA }, { "MessageBoxA", m_MessageBoxA }, { "PeekMessageA", m_PeekMessageA },
     { "timeGetTime", m_timeGetTime },
     { "RegOpenKeyA", m_RegOpenKeyA }, { "RegQueryValueA", m_RegQueryValueA }, { "RegCloseKey", m_RegCloseKey },
     { "GetDriveTypeA", m_GetDriveTypeA },

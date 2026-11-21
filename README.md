@@ -62,7 +62,8 @@ have the disc's files in a folder, skip it and use `make CD=/that/folder` and
 
 Playing:
 
-- The mouse does everything; the sign-in book takes your name from the keyboard.
+- The mouse does everything; the sign-in book takes your name from the keyboard
+  (or from one drawn on the screen: see below).
 - **Enter** (or Esc) stops the movie that is playing. `--skip-intro` does that
   for the two opening movies by itself.
 - **Saving happens in one place only: MENU (bottom right of a scene), then
@@ -73,6 +74,17 @@ Playing:
   by the exact name: the game never lists them. To make carrying on easy, the
   name you last saved under is typed into the book for you. Click the red
   arrow, then "old game". Backspace clears it if you want another name.
+- **A game controller** plays it too (any pad SDL knows: Xbox-style, the
+  Steam Deck's). The left stick or the cross moves the pointer, the right
+  stick moves it slowly for small targets, **A** (or the right trigger) is
+  the mouse button, **B** is Esc, **Start** is Enter (stops a movie),
+  **Back** is full screen. Plug it in before or while playing.
+- **No keyboard?** With a controller or a touch screen, a keyboard is drawn
+  on the screen when the sign-in book opens: press its keys with A or a
+  finger. On the pad the cross steps from key to key, **B** is Backspace,
+  **X** is Shift, **Start** continues, **Y** closes and opens the keyboard.
+  Its bottom-left keys hide it and move it to the top of the screen.
+  Pressing a real key puts it away.
 - **F8** turns xBR edge redrawing on and off (see Picture modes).
 - **F10** turns picture smoothing on and off, **F11** full screen, **F12**
   cycles the scaling (smooth, sharp, CRT, ...). These are remembered.
@@ -97,6 +109,7 @@ Options: set them in the launcher, or on the command line, or in
 | | `smooth=0` | Show the original pixels: no melting of the 256-colour dithering (F10) |
 | | `upscale=xbr` | Redraw edges at twice the size before scaling: slanted ink lines lose their stair-steps (F8). Off by default |
 | | `scale=sharp` | Scaling to the window: `smooth` (default), `sharp`, `crt`, `nearest`, `integer` (F12) |
+| | `gamepad=0` | Ignore game controllers |
 | | `bars=black` | Black beside the picture when full screen, instead of a blur of it |
 | *path* | `cd=/path` | The folder with the disc's files |
 
@@ -187,6 +200,11 @@ seen to open over an SDL window but has not been driven by a person from
 inside the game, and the Windows and Linux hand-over (opening the PDF) has
 not been run at all.
 
+Game controller and on-screen keyboard (2026-11-21): scripted play-throughs
+drive the pointer with a pretend pad, sign in with it and with taps on the
+keyboard drawn over the book, and reach the options screen. No real
+controller or touch screen has been tried yet, on any system.
+
 Known gaps: only the first scene and the activities' first screens have been played by the
 tests. [docs/ROADMAP.md](docs/ROADMAP.md) lists everything still to build.
 
@@ -209,6 +227,8 @@ your disc ──extract──> game/cd/MADEURO.EXE ──pcrecomp──> build/g
 | `src/win/` | Windows only: the POSIX calls pcrecomp's Win32 layer makes, on the Windows API; MIDI on MCI; opening a printed PDF |
 | `src/platform.c` | Where the player's files live on each system |
 | `src/shims.c` | The CD-ROM drive check, the installer's registry entry, the clock, the window's size |
+| `src/pad.c` | A game controller as the mouse and a few keys; tells mouse-and-keys, touch and pad apart |
+| `src/osk.c` | The keyboard drawn on the screen for the sign-in book, when there are no real keys |
 | `src/debug.c` | A script driver for tests; screenshots |
 | `launcher/` | The macOS app: a SwiftUI settings window and Play button around the engine. `launcher/win/`: the same window on Win32 |
 | `third_party/pcrecomp` | The recompiler and the Win32 layer (submodule) |

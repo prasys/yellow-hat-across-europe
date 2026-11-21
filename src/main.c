@@ -10,7 +10,8 @@
  *   madeline [--skip-intro] [--fullscreen|--windowed] [--headless] <path to the extracted CD>
  *
  * The same choices can be kept in madeline.ini in the save folder
- * (skip_intro, fullscreen, remember_name, smooth, upscale, scale, bars); the command
+ * (skip_intro, fullscreen, remember_name, smooth, upscale, scale, bars,
+ * gamepad); the command
  * line wins.
  *
  * No game data is built into this program: it maps MADEURO.EXE from the CD
@@ -209,6 +210,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "madeline: could not open a window\n");
         return 70;
     }
+    madeline_pad_init(ini_flag("gamepad", 1));
     madeline_screenshots_init(save);
     madeline_print_init(save);
     hle_set_pump_hook(madeline_idle);           /* the presenter's pump, then ours */

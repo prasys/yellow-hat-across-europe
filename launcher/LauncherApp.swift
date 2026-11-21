@@ -101,6 +101,7 @@ struct LauncherView: View {
                     Toggle("Skip the opening movies", isOn: $model.skipIntro)
                     Toggle("Fill in my name on the sign-in book", isOn: $model.rememberName)
                     Toggle("Start in full screen", isOn: $model.fullscreen)
+                    Toggle("Play with a game controller", isOn: $model.gamepad)
                 }
                 Section {
                     Toggle("Smooth the painting", isOn: $model.smooth)

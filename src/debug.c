@@ -6,7 +6,10 @@
  * Each step is a time in milliseconds since start and an action: `shot FILE`
  * writes the picture as a BMP, `click X Y` presses and releases the left
  * button there, `move X Y` moves the mouse, `key VK` presses and releases a
- * virtual key, `type TEXT` presses its letters, `peek ADDR` prints a
+ * virtual key, `type TEXT` presses its letters, `touch X Y` is a tap on a
+ * touch screen, `pad BUTTON [MS]` holds a controller's button (a b x y start
+ * back up down left right; 80 ms unless said), `pad stick X Y MS` pushes its
+ * left stick (percent; `rstick` the right), `peek ADDR` prints a
  * guest dword, `close` is the window's close button, `quit` leaves. Times are on the
  * game's clock, so MADELINE_SPEED shortens them. madeline_debug_tick runs the steps that are due.
  */
@@ -115,6 +118,13 @@ void madeline_debug_tick(uint32_t now) {
             hle_input_mouse(WM_LBUTTONDOWN, x, y);
             g_rx = x, g_ry = y, g_release_at = now + 80;
         }
+        else if (sscanf(end, "touch %d %d", &x, &y) == 2) {              /* a tap on a touch screen: a click, and the player has no keys */
+            madeline_input_device = DEV_TOUCH;
+            hle_input_mouse(WM_MOUSEMOVE, x, y);
+            hle_input_mouse(WM_LBUTTONDOWN, x, y);
+            g_rx = x, g_ry = y, g_release_at = now + 80;
+        }
+        else if (!strncmp(end, "pad ", 4)) madeline_pad_script(end + 4, now);
         else if (sscanf(end, "move %d %d", &x, &y) == 2) hle_input_mouse(WM_MOUSEMOVE, x, y);
         else if (!strncmp(end, "type ", 5)) {
             for (const char *c = end + 5; *c; c++) {
