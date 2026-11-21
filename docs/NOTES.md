@@ -64,8 +64,16 @@ change rather than converting at blit time.
   by it. The flag is therefore set when the samples have been played, not when
   they were queued.
 - Music is `mciSendCommandA` on the `sequencer` device with
-  `MAD400\MEAMIDn.MID`, played with `MCI_NOTIFY`; the game restarts it on
-  `MM_MCINOTIFY`.
+  `MAD400\MEAMIDn.MID`, played with `MCI_NOTIFY`. The game restarts it on
+  `MM_MCINOTIFY` only inside the wait loop at `0x4111xx` (a `PeekMessageA`
+  for `0x3B9` alone, then `0x41016D` when `[0x41E538]` is 1). The window
+  procedure (`0x40665B`) ignores the message, so on the new/old game menu
+  (`MAD380`, `MEAMID2`, 89 s) the music ends and stays off, as on Windows.
+  The title screen goes on to the sign-in book by itself about 25 s
+  (game clock) after its music starts.
+- The disc's ISO 9660 image: libarchive 3.8 (`bsdtar`, on Linux and in MSYS2)
+  lists it as empty without an error; 7-Zip reads it. `extract_iso.sh` tries
+  7z when bsdtar left no `MADEURO.EXE`.
 
 ## File formats seen (not decoded here: the game's own code reads them)
 

@@ -37,6 +37,13 @@ EXE      :=
 LIBS     := $(shell pkg-config --libs sdl2 SDL2_ttf) -lpthread -lm
 ifeq ($(UNAME),Darwin)
 LIBS     += -framework AudioToolbox -framework CoreFoundation
+else ifneq ($(FLUIDSYNTH),0)
+# Linux: the MIDI music on FluidSynth (src/midi.c), when it is installed.
+# Without it (or with FLUIDSYNTH=0) the program builds and the music is silent.
+ifneq (,$(shell pkg-config --exists fluidsynth && echo yes))
+CFLAGS   += -DHAVE_FLUIDSYNTH $(shell pkg-config --cflags fluidsynth)
+LIBS     += $(shell pkg-config --libs fluidsynth)
+endif
 endif
 endif
 BIN      := $(B)/madeline$(EXE)
@@ -124,7 +131,7 @@ engine-into-app: $(BIN)
 	cp $(BIN) "$(APP)/"
 launch: app
 	"$(APP)/$(APPEXE)" &
-else
+else ifeq ($(UNAME),Darwin)
 # The launcher (macOS): a SwiftUI window for the settings and a Play button,
 # wrapped with the engine as an app. The app holds the lift of the player's
 # own game, so it is for the machine it was built on: do not hand it on.
@@ -157,7 +164,45 @@ engine-into-app: $(BIN)
 	cp $(BIN) "$(APP)/Contents/MacOS/madeline"
 launch: app
 	open "$(APP)"
+else
+# The launcher (Linux): a GTK 4 window for the settings and a Play button
+# (launcher/linux), in a folder with the engine, as on Windows. The folder
+# holds the lift of the player's own game: do not hand it on.
+APP      := $(B)/app
+LAUNCHER := yellow-hat-across-europe
+APP_ID   := io.github.prasys.YellowHatAcrossEurope
+APPS     := $(or $(XDG_DATA_HOME),$(HOME)/.local/share)
+build/launcher-linux: launcher/linux/launcher.c src/soundfonts.h
+	@mkdir -p build
+	$(CC) -O2 -Wall -Isrc $(shell pkg-config --cflags gtk4) -o $@ $< $(shell pkg-config --libs gtk4)
+# Files are copied over an existing folder rather than the folder being replaced:
+# the launcher runs `make engine-into-app` when a disc needs its engine built.
+app: $(BIN) build/launcher-linux
+	@mkdir -p "$(APP)"
+	cp $(BIN) "$(APP)/"
+	cp build/launcher-linux "$(APP)/$(LAUNCHER).new" && mv -f "$(APP)/$(LAUNCHER).new" "$(APP)/$(LAUNCHER)"   # a renamed file can replace a running one
+	@pwd > "$(APP)/source-root.txt"
+	@echo "built $(APP)/$(LAUNCHER)"
+engine-into-app: $(BIN)
+	@mkdir -p "$(APP)"
+	cp $(BIN) "$(APP)/"
+launch: app
+	"$(APP)/$(LAUNCHER)" &
+# `make desktop` puts the launcher in the desktop's menu, for this user only.
+# The entry, the icon and the windows (the launcher's and, through it, the
+# engine's) share one name, so a Wayland desktop shows them under the hat.
+# Remove it with `make undesktop`.
+desktop: app
+	@mkdir -p "$(APPS)/applications" "$(APPS)/icons/hicolor/scalable/apps"
+	cp launcher/icon.svg "$(APPS)/icons/hicolor/scalable/apps/$(APP_ID).svg"
+	@printf '[Desktop Entry]\nType=Application\nName=Yellow Hat Across Europe\nGenericName=Madeline: European Adventures\nComment=Madeline: European Adventures (1996), from your own disc\nExec="%s" %%f\nIcon=$(APP_ID)\nTerminal=false\nCategories=Game;KidsGame;\nStartupWMClass=$(APP_ID)\nStartupNotify=true\n' \
+	  "$(abspath $(APP))/$(LAUNCHER)" > "$(APPS)/applications/$(APP_ID).desktop"
+	@rm -f "$(APPS)/applications/madeline.desktop" "$(APPS)/icons/hicolor/scalable/apps/madeline.svg"
+	@echo "added $(APPS)/applications/$(APP_ID).desktop"
+undesktop:
+	rm -f "$(APPS)/applications/$(APP_ID).desktop" "$(APPS)/icons/hicolor/scalable/apps/$(APP_ID).svg" \
+	  "$(APPS)/applications/madeline.desktop" "$(APPS)/icons/hicolor/scalable/apps/madeline.svg"
 endif
 clean:
 	rm -rf build
-.PHONY: all lift extract run app engine-into-app launch clean FORCE
+.PHONY: all lift extract run app engine-into-app launch desktop undesktop clean FORCE

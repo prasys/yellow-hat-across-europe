@@ -4,7 +4,11 @@
 
 `make && make run` on a 64-bit Linux desktop (x86-64 and arm64), with music.
 
-## Where it stands (audit of 2026-11-15, nothing built on Linux yet)
+## Where it stands
+
+2026-11-21: built, lifted and played headless to the station on CachyOS
+x86-64 (Wayland). Ticked below; what is left is a person at the window and
+the launcher question. The audit of 2026-11-15 follows.
 
 Already portable:
 
@@ -20,18 +24,18 @@ Already portable:
 
 ## To do
 
-- [ ] **First build.** Packages (Debian/Ubuntu): `build-essential pkg-config
+- [x] **First build.** (No source change was needed.) Packages (Debian/Ubuntu): `build-essential pkg-config
       libsdl2-dev libsdl2-ttf-dev python3-venv libarchive-tools`. Fix what the
       compiler finds. Expect: `-D_GNU_SOURCE`/`_DEFAULT_SOURCE` for `usleep`,
       `strnlen`, `realpath` in `src/`; GNU ld wanting `-lm -lpthread` last.
-- [ ] **Guest memory address.** The build passes
+- [x] **Guest memory address.** (Maps on x86-64; selftests pass. 39-bit arm64 untried.) The build passes
       `-DRECOMP_MEM_BASE=0x100000000000ull` (pcrecomp's value for a Mac). Check
       it maps on Linux x86-64 and arm64 (48-bit and 39-bit address spaces
       differ); if not, choose a per-platform value in the Makefile or drop the
       define there and let win32hle pick. Run win32hle's own selftests first
       (`third_party/pcrecomp/runtime/win32hle/build_selftests.sh` with
       `HLE_BASED=1`): if those fail, the problem is upstream, not here.
-- [ ] **Headless playtest reaches the main menu, then the station** (file
+- [x] **Headless playtest reaches the main menu, then the station** (file
       trace shows `MAD000/SCRN000.PCX`, then `MAD050`). Case matters now: the
       disc's files are upper-case and the game asks in lower and mixed case.
       win32hle matches names without case; confirm for relative paths too
@@ -40,24 +44,24 @@ Already portable:
       position at non-integer scales, F9-F12, close button dialog.
 - [ ] **Sound**: SDL audio through PipeWire/PulseAudio; check speech pacing
       (animation is timed by played audio, see `AGENTS.md`).
-- [ ] **MIDI** (`src/midi.c`, the `#else` branch is silent): FluidSynth behind
+- [x] **MIDI** (`src/midi.c`, the `#else` branch is silent): FluidSynth behind
       the same six functions, found with `pkg-config fluidsynth` at build time
       (`-DHAVE_FLUIDSYNTH`), a system SoundFont
       (`/usr/share/sounds/sf2/FluidR3_GM.sf2` and friends, or `soundfont=` in
       `madeline.ini`), silent with a one-line notice when neither is there.
       `madeline_midi_finished` must turn true at the end of the file: the game
       restarts its music on that.
-- [ ] **Launcher.** The SwiftUI app is macOS-only. On Linux the game runs
+- [x] **Launcher.** (GTK 4, `launcher/linux/`, 2026-11-22.) The SwiftUI app is macOS-only. On Linux the game runs
       from the command line and `madeline.ini`; decide whether a small
       launcher is wanted (GTK, or a terminal menu) before building one.
-- [ ] **Desktop entry and icon** (`.desktop`, the PNG from
+- [x] **Desktop entry and icon** (`.desktop`, the PNG from
       `launcher/make_icon.swift` checked in as an asset or redrawn in a
       portable script).
-- [ ] **CI** (GitHub Actions, Linux + macOS) that builds the host **without a
+- [x] **CI** (GitHub Actions, Linux + macOS) that builds the host **without a
       game**: a stub `build/gen` (empty dispatch table, `recomp_funcs.h`,
       `lift_id.h`) so `src/` compiles and links against the pinned pcrecomp. No
       game file may be fetched in CI.
-- [ ] README: a Linux quick start. ROADMAP: tick what is done.
+- [x] README: a Linux quick start. ROADMAP: tick what is done.
 
 ## Done when
 

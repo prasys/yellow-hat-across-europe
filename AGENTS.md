@@ -58,9 +58,13 @@ Requirements: `brew install sdl2 sdl2_ttf`, Python 3 with `capstone` (the lift
 script makes `.venv` itself), and `ffmpeg` if you want contact sheets.
 On Windows: an MSYS2 UCRT64 shell with the packages in the README; the
 binary is `build/madeline.exe` and every command above is run from that shell.
+On Linux: the packages in the README (SDL2, SDL2_ttf, FluidSynth and a
+SoundFont, 7z, GTK 4 for the launcher); `make app` builds `build/app/`
+(launcher + engine), `make desktop` adds it to the desktop's menu.
 
 CI (`.github/workflows/build.yml`) builds `make STUB=1` and the launchers on
-macOS and Windows, and tries Linux. It has no game, so it cannot tell whether
+macOS, Windows and Linux (x86-64 and arm64; the engine also without
+FluidSynth). It has no game, so it cannot tell whether
 the game plays.
 
 There is no unit-test suite. "It builds" is not verification: run a playtest
@@ -74,13 +78,14 @@ that reaches the code you changed and look at the screenshots.
 | `src/gfx.c` | All of GDI32 + WING32 + `GetDC`/`ReleaseDC`, on a palette-indexed 640x480 screen |
 | `src/xbr.c` | `upscale=xbr`: the finished picture doubled by the xBR rule, for the changed part only, on a few threads. `gfx.c` hands it to the presenter through its 16-bit "compose" hook, which is why the mouse still counts 640x480 (see the comment there). `MADELINE_UPSCALE=xbr` for tests: `shot` then writes 1280x960; `MADELINE_GFXTRACE=1` prints its timings |
 | `src/audio.c` | `waveOut*` on SDL (via win32hle's stream mixer) and `mciSendCommandA` |
-| `src/midi.c` | MIDI files on AudioToolbox; silent stand-in elsewhere |
+| `src/midi.c` | MIDI files on AudioToolbox (macOS), FluidSynth into a win32hle mixer stream (Linux, `HAVE_FLUIDSYNTH`); silent stand-in elsewhere |
 | `src/shims.c` | CD drive type, registry, the clock + idle throttle, window maximize |
 | `src/platform.c` | Per-system data folder (macOS / XDG / `%APPDATA%`), `mkdir -p`. New OS differences go here, not in `#ifdef`s scattered through the other files |
 | `src/debug.c` | `MADELINE_SCRIPT` test driver; F9 / `SIGUSR1` screenshots |
 | `src/madeline.h` | What the files above share |
 | `src/win/` | Windows (MSYS2 UCRT64) only. `compat_win.c` + headers named after the POSIX ones (`unistd.h`, `dirent.h`, `sys/mman.h`...): first on the include path there, they give win32hle what MinGW lacks. `midi_win.c`: MIDI on MCI. `wsock_stub.c`: an empty WSOCK32. The only files that include `<windows.h>`; they include nothing of win32hle's (its Win32 constants would clash) |
 | `launcher/` | SwiftUI app (macOS 13+): edits `madeline.ini`, lists saves, unpacks a disc image, runs the engine. Built with plain `swiftc` (`make app`), no Xcode project. `launcher --snapshot FILE` writes a picture of its window, for checking layout |
+| `launcher/linux/` | The same launcher for Linux: one C file on GTK 4, built by `make app` into `build/app/` with the engine (`yellow-hat-across-europe`). File choosers go through the desktop portal. Honours `MADELINE_SAVE_DIR` and `MADELINE_ENGINE`, takes a disc image or folder as its argument, `--snapshot FILE.png`. It shares the SoundFont list with the engine (`src/soundfonts.h`). The engine's window is given the launcher's app id (`SDL_APP_ID`...) so both sit under one desktop entry |
 | `launcher/win/` | The same launcher for Windows: one C file on plain Win32, built by `make app` into `build/app/` with the engine and its DLLs. It honours `MADELINE_SAVE_DIR` and `MADELINE_ENGINE`, takes a disc image or folder as its argument, and has `--snapshot FILE.bmp` too: check it against a test folder, never the player's |
 | `scripts/` | extract, lift, playtest, dis |
 | `docs/` | NOTES (findings), ROADMAP (to do), `briefs/` (work orders), `MADEURO.sha256` (the build targeted) |
