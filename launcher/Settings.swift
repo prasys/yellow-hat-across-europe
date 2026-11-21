@@ -129,6 +129,7 @@ final class LauncherModel: ObservableObject {
     @Published var fullscreen: Bool { didSet { save() } }
     @Published var rememberName: Bool { didSet { save() } }
     @Published var smooth: Bool { didSet { save() } }
+    @Published var xbr: Bool { didSet { save() } }
     @Published var scaling: Scaling { didSet { save() } }
     @Published var blurBars: Bool { didSet { save() } }
 
@@ -151,6 +152,7 @@ final class LauncherModel: ObservableObject {
         fullscreen = ini.flag("fullscreen", default: false)
         rememberName = ini.flag("remember_name", default: true)
         smooth = ini.flag("smooth", default: true)
+        xbr = ini.string("upscale") == "xbr"
         scaling = Scaling(rawValue: ini.string("scale") ?? "") ?? .smooth
         blurBars = (ini.string("bars") ?? "blur") != "black"
         loading = false
@@ -158,12 +160,13 @@ final class LauncherModel: ObservableObject {
         checkEngine()
     }
 
-    /// Re-read what the game may have changed while it ran (F10, F11, F12) and the saves.
+    /// Re-read what the game may have changed while it ran (F8, F10, F11, F12) and the saves.
     func reload() {
         loading = true
         let ini = IniFile(url: Paths.ini)
         fullscreen = ini.flag("fullscreen", default: fullscreen)
         smooth = ini.flag("smooth", default: smooth)
+        xbr = ini.string("upscale").map { $0 == "xbr" } ?? xbr
         scaling = Scaling(rawValue: ini.string("scale") ?? "") ?? scaling
         blurBars = (ini.string("bars") ?? (blurBars ? "blur" : "black")) != "black"
         loading = false
@@ -178,6 +181,7 @@ final class LauncherModel: ObservableObject {
         ini.set("fullscreen", fullscreen ? "1" : "0")
         ini.set("remember_name", rememberName ? "1" : "0")
         ini.set("smooth", smooth ? "1" : "0")
+        ini.set("upscale", xbr ? "xbr" : "off")
         ini.set("scale", scaling.rawValue)
         ini.set("bars", blurBars ? "blur" : "black")
         do { try ini.write(to: Paths.ini) } catch { status = "Could not save settings: \(error.localizedDescription)" }

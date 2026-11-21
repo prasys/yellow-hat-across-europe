@@ -104,6 +104,7 @@ struct LauncherView: View {
                 }
                 Section {
                     Toggle("Smooth the painting", isOn: $model.smooth)
+                    Toggle("Redraw edges at twice the size (xBR)", isOn: $model.xbr)
                     Picker("Scaling", selection: $model.scaling) {
                         ForEach(Scaling.allCases) { Text($0.label).tag($0) }
                     }
@@ -114,7 +115,7 @@ struct LauncherView: View {
                 } header: {
                     Text("Picture")
                 } footer: {
-                    Text("Smoothing melts the 256-colour speckle into washes of paint and leaves the ink lines alone.")
+                    Text("Smoothing melts the 256-colour speckle into washes of paint; xBR takes the stair-steps out of slanted lines.")
                         .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -245,7 +246,7 @@ struct LauncherView: View {
     private var footer: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(model.status.isEmpty ? "F9 screenshot  ·  F10 smoothing  ·  F11 full screen  ·  F12 scaling" : model.status)
+                Text(model.status.isEmpty ? "F8 xBR  ·  F9 screenshot  ·  F10 smoothing  ·  F11 full screen  ·  F12 scaling" : model.status)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
