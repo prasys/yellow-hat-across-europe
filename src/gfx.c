@@ -8,8 +8,8 @@
  * device, so this file is one: it keeps the screen as colour indices plus the
  * 256 colours currently "in the hardware", and re-colours the picture whenever
  * either changes. The game's whole GDI import list (19 calls), WING32.DLL's 4
- * and USER32's GetDC/ReleaseDC are answered here; win32hle's truecolour GDI is
- * not involved. The finished picture, with the mouse pointer drawn on it, is
+ * and USER32's GetDC/ReleaseDC are answered here (the printer's part of them in
+ * print.c); win32hle's truecolour GDI is not involved. The finished picture, with the mouse pointer drawn on it, is
  * handed to win32hle's SDL presenter as the window surface.
  */
 #include <stdio.h>
@@ -280,13 +280,15 @@ void madeline_gfx_init(void) {
 /* ---- device contexts ---- */
 static void g_GetDC(void)     { RET(H_SCREEN_DC, 1); }
 static void g_ReleaseDC(void) { RET(1, 2); }
-static void g_DeleteDC(void)  { wingdc_t *d = WDC(A32(0)); if (d) d->used = 0; RET(1, 1); }
-static void g_CreateDCA(void) {                          /* a printer's: there is none */
-    if (g_trace) fprintf(stderr, "[gfx] CreateDCA(%s, %s): no printer\n", ASTR(0) ? ASTR(0) : "", ASTR(1) ? ASTR(1) : "");
-    RET(0, 4);
+static void g_DeleteDC(void) {
+    wingdc_t *d = WDC(A32(0));
+    if (d) d->used = 0;
+    if (A32(0) == MADELINE_PRINTER_DC) madeline_print_close();
+    RET(1, 1);
 }
 static void g_GetDeviceCaps(void) {
     uint32_t v = 0;
+    if (A32(0) == MADELINE_PRINTER_DC) RET(madeline_print_caps(A32(1)), 2);
     switch (A32(1)) {
         case 8:   v = SCR_W; break;                      /* HORZRES */
         case 10:  v = SCR_H; break;                      /* VERTRES */
@@ -430,6 +432,7 @@ static void g_StretchDIBits(void) {
     int xs = (int)A32(5), ys = (int)A32(6), ws = (int)A32(7), hs = (int)A32(8);
     const uint8_t *bits = (const uint8_t *)APTR(9), *bmi = (const uint8_t *)APTR(10);
     uint32_t usage = A32(11);
+    if (A32(0) == MADELINE_PRINTER_DC) RET(madeline_print_stretch(), 13);
     if (A32(0) != H_SCREEN_DC || !bits || !bmi || wd <= 0 || hd <= 0 || ws <= 0 || hs <= 0) RET(0, 13);
     int w = rd32(bmi, 4), h = rd32(bmi, 8), bpp = bmi[14], topdown = h < 0;
     if (h < 0) h = -h;
@@ -457,15 +460,8 @@ static void g_StretchDIBits(void) {
     RET((uint32_t)hs, 13);
 }
 
-/* ---- printing (the postcards): no printer is offered, so none of it runs ---- */
-static void g_StartDocA(void)  { RET((uint32_t)-1, 2); }
-static void g_StartPage(void)  { RET(0, 1); }
-static void g_EndPage(void)    { RET(0, 1); }
-static void g_EndDoc(void)     { RET(0, 1); }
-static void g_AbortDoc(void)   { RET(0, 1); }
-
 const win32hle_shim madeline_gfx[] = {
-    { "GetDC", g_GetDC }, { "ReleaseDC", g_ReleaseDC }, { "DeleteDC", g_DeleteDC }, { "CreateDCA", g_CreateDCA },
+    { "GetDC", g_GetDC }, { "ReleaseDC", g_ReleaseDC }, { "DeleteDC", g_DeleteDC },
     { "GetDeviceCaps", g_GetDeviceCaps }, { "GetStockObject", g_GetStockObject }, { "SelectObject", g_SelectObject },
     { "DeleteObject", g_DeleteObject }, { "SetBkMode", g_SetBkMode }, { "TextOutA", g_TextOutA },
     { "CreatePalette", g_CreatePalette }, { "SelectPalette", g_SelectPalette }, { "RealizePalette", g_RealizePalette },
@@ -473,6 +469,5 @@ const win32hle_shim madeline_gfx[] = {
     { "WinGCreateDC", g_WinGCreateDC }, { "WinGCreateBitmap", g_WinGCreateBitmap },
     { "WinGSetDIBColorTable", g_WinGSetDIBColorTable }, { "WinGBitBlt", g_WinGBitBlt },
     { "StretchDIBits", g_StretchDIBits },
-    { "StartDocA", g_StartDocA }, { "StartPage", g_StartPage }, { "EndPage", g_EndPage }, { "EndDoc", g_EndDoc }, { "AbortDoc", g_AbortDoc },
     { 0, 0 }
 };

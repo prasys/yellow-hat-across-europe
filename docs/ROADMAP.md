@@ -32,10 +32,37 @@ Ordered by how much each matters to someone actually playing.
 
 - [ ] **`TextOutA`** is a no-op (`gfx.c`). Not seen called yet; if a screen
       draws text with it, render with SDL_ttf into the indexed screen.
-- [ ] **Printing** (postcards, pictures): `CreateDCA` returns no printer.
-      Build a printer DC that collects the `StretchDIBits` page and writes a
-      PNG or PDF to the user's Pictures folder, or hands it to the macOS print
-      dialog.
+- [x] **Printing** (2026-11-21): `src/print.c` is the printer. The page the
+      game sends becomes a PDF in `prints/` beside the saves and is handed to
+      the macOS print dialog (`src/mac/print_mac.m`), or opened in the PDF
+      viewer on Windows and Linux. Before this, Yes to "Would you like to
+      print?" ended the game: `GetProfileStringA` was an unimplemented import.
+      Checked: a headless play-through to the painting screen, a bucket of
+      red, Print, and the PDF rendered and compared with the screenshot; the
+      dialog opening from a test program with an SDL window.
+- [ ] **Printing, to try by hand** (nobody has yet). In the real window,
+      once windowed and once full screen (F11): ACTIVITIES at the station,
+      Painting, a picture, the red arrow, paint something, Print, Yes.
+      - The Mac's print dialog comes up in front of the game, with the
+        picture in its preview, the right way up and not stretched.
+      - Cancel: back in the game, which still takes clicks, with the pointer
+        and the sound as they were.
+      - Print to a real printer: the picture fills the sheet's width, and
+        the colours are the screen's (the red is red, not orange).
+      - PDF menu, Save as PDF: the file opens, one page.
+      - `prints/` beside the saves has one PDF for each Yes, Cancel included.
+      - No to the game's question: nothing happens and no PDF is written.
+      - Print twice in one sitting.
+      - The same on Windows: the PDF opens in the viewer.
+      - Is the picture's own shape wanted, or the original's 4:3 stretch
+        (`keep_shape` in `print.c`)? Decide after seeing one on paper.
+- [ ] Printing, left: nobody has pressed Print or Cancel in the dialog from
+      inside the game (full screen especially); the game's second Print
+      button (a 548x290 picture, the postcards by the look of it: see NOTES)
+      was not reached by a script, only the painting's (screen 32); `print_win.c` and the `xdg-open` branch are
+      unrun; a real print dialog on Windows (`PrintDlg`) instead of the
+      viewer; the picture goes out as its raw 256-colour pixels, without the
+      smoothing the screen gets.
 - [ ] **`StretchDIBits`** handles 8-bit and 24-bit sources to the screen only;
       1/4/16-bit and RLE are refused with a log line.
 - [x] **Mouse pointer** (2026-11-15): drawn into the picture by the host

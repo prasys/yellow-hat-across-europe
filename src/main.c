@@ -174,6 +174,7 @@ int main(int argc, char **argv) {
     snprintf(madeline_save_dir, sizeof madeline_save_dir, "%s/CWONDERS/MADEURO", save);
 
     win32hle_register(madeline_shims);          /* ours first: the first of a name wins */
+    win32hle_register(madeline_print);
     win32hle_register(madeline_gfx);
     win32hle_register(madeline_audio);
     recomp_host_init();
@@ -209,6 +210,7 @@ int main(int argc, char **argv) {
         return 70;
     }
     madeline_screenshots_init(save);
+    madeline_print_init(save);
     hle_set_pump_hook(madeline_idle);           /* the presenter's pump, then ours */
     if (recomp_host_boot_permissive(exe) != 0) return 65;
     return (int)recomp_host_run();

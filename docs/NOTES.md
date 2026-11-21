@@ -133,6 +133,47 @@ Saving:
   handler, so the host converts the presenter's `WM_CLOSE` (close button,
   Cmd+Q) into that message, and shows the question as a real dialog.
 
+## Printing
+
+One routine, `0x40FBB0(bits, width, height)`, called from two places: the
+painting screen's Print button (screen 32, mask zone `0x71`, a 596x349
+picture) and a second one not yet reached in play (`0x4155B0`, in the click
+handler `0x415415`, zone `0x72`, a 548x290 picture: the postcards, by the
+size, but which screen is a guess; zone `0x72` is in the masks of 4, 14 and
+33). Both first play
+`mad400\printwt.mav`. Then:
+
+1. `MessageBoxA` "Would you like to print? Select YES to print" (Yes/No).
+2. `0x40FAEC`: `GetProfileStringA("windows", "device", ",,,")`, the default
+   printer of WIN.INI, cut at its commas into name, driver, port (any part
+   missing: "Bad Driver Information In 'WIN.INI'"), and
+   `CreateDCA(driver, name, port, NULL)`. There is no print dialog.
+3. `GetDeviceCaps(RASTERCAPS)` must have `RC_BITBLT`. Then four more checks
+   that pass the *RC_ bit values* 8, 2, 1, 4 as the index, each with its own
+   warning box when the answer is zero ("requires BANDING support"...): as
+   indices those are HORZRES, TECHNOLOGY, nothing, and HORZSIZE. A box does
+   not stop the print.
+4. `StartDocA` (document "MADEURO"), `StartPage`, the picture turned upside
+   down in place (`0x406EEE`) to make a bottom-up 8-bit DIB with the current
+   colours as its table, one `StretchDIBits` to `0,0` at HORZRES wide by
+   three quarters of HORZRES high (VERTRES if that is less), turned back,
+   `EndPage`, `EndDoc`, `DeleteDC`.
+
+Neither picture is 4:3, so the original printed them stretched tall. The host
+keeps the picture's own shape (`print.c`).
+
+`scripts/dis.sh` drops any instruction with a `*` in its text (`lea edi,
+[edi + edi*2]`, the "three quarters" above, among them): the awk pattern
+stops at the first `*`.
+
+To reach it in a test (with `MADELINE_SKIP_INTRO=1`, speed 8):
+`12000 click 320 280; 40000 type MAX; 52000 click 560 440; 86000 click 330 60;
+95000 key 13; 110000 key 13; 205000 click 536 440` (the activities button),
+`262000 click 300 80` (Painting), `300000 click 210 220; 322000 click 560 430`
+(a picture, the arrow), `382000 click 114 468` (Print). The activities screen
+is `MAD310`: Painting leads to `MAD350` then `MAD320`, Countries to `MAD370`,
+Word Game to `MAD340`.
+
 ## Things that went wrong on the way (so they are not repeated)
 
 - Clicks seemed to work before they did: early screens advance on a timer or

@@ -73,6 +73,7 @@ that reaches the code you changed and look at the screenshots.
 | `src/main.c` | Entry: drive mapping (`D:` = disc, `C:` = save folder), shim registration order, boot |
 | `src/gfx.c` | All of GDI32 + WING32 + `GetDC`/`ReleaseDC`, on a palette-indexed 640x480 screen |
 | `src/xbr.c` | `upscale=xbr`: the finished picture doubled by the xBR rule, for the changed part only, on a few threads. `gfx.c` hands it to the presenter through its 16-bit "compose" hook, which is why the mouse still counts 640x480 (see the comment there). `MADELINE_UPSCALE=xbr` for tests: `shot` then writes 1280x960; `MADELINE_GFXTRACE=1` prints its timings |
+| `src/print.c` | The printer: `GetProfileStringA` (WIN.INI's default printer), `CreateDCA`, `StartDocA`...`EndDoc`, and the printer's share of `GetDeviceCaps` / `StretchDIBits` / `DeleteDC`, which `gfx.c` passes on by the DC handle. One page, written as a PDF to `<data folder>/prints`, then `madeline_print_hand_over` (not when headless): the print dialog in `src/mac/print_mac.m` (Objective-C, the only such file), `ShellExecute` in `src/win/print_win.c`, `xdg-open` in `platform.c`. `MADELINE_GFXTRACE=1` shows its calls |
 | `src/audio.c` | `waveOut*` on SDL (via win32hle's stream mixer) and `mciSendCommandA` |
 | `src/midi.c` | MIDI files on AudioToolbox; silent stand-in elsewhere |
 | `src/shims.c` | CD drive type, registry, the clock + idle throttle, window maximize |
@@ -142,7 +143,13 @@ that reaches the code you changed and look at the screenshots.
    `HLE_MSGTRACE=1` (dispatched messages; mouse messages are not shown),
    `MADELINE_GFXTRACE=1`, `MADELINE_AUDIOTRACE=1|2`. Script verbs: `click`,
    `move`, `key`, `type`, `shot`, `peek ADDR`, `win`, `close`, `quit` (`src/debug.c`).
-4. To see what the game does at an address, `scripts/dis.sh LO HI`. Import
+4. Printing: the script in `docs/NOTES.md` ("Printing") reaches the painting
+   screen's Print button in about a minute. Headless, Yes is answered for
+   you and the page lands in `OUT/save/prints/*.pdf` with no dialog; turn it
+   into a picture with `sips -s format png` and look at it. The dialog itself
+   only shows in a real window, so a change to `src/mac/print_mac.m` needs a
+   person: `docs/ROADMAP.md` has the list to go through.
+5. To see what the game does at an address, `scripts/dis.sh LO HI`. Import
    thunks are the `jmp dword ptr [0x4233xx]` stubs near `0x41CE8C`-`0x41D110`.
 
 ## Conventions

@@ -77,6 +77,11 @@ Playing:
 - **F10** turns picture smoothing on and off, **F11** full screen, **F12**
   cycles the scaling (smooth, sharp, CRT, ...). These are remembered.
   **F9** saves a screenshot (to `screenshots/` beside the saves).
+- **Printing.** The Print button on the painting screen asks "Would you like to print?" as it always did. Yes makes a PDF of the
+  picture in `prints/` beside the saves and, on a Mac, opens the system
+  print dialog for it: pick a printer there, or its PDF menu to save a copy
+  somewhere else. On Windows and Linux the PDF is opened in your PDF viewer,
+  to print from there.
 - Saved games are kept in
   `~/Library/Application Support/MadelineEuropeanAdventures/CWONDERS/MADEURO/`.
 
@@ -176,7 +181,13 @@ On Windows 11 the same play-throughs pass and the game has been started in a
 window and looked and listened to once (2026-11-17), through Windows' own
 MIDI synthesizer; it has had far less play there than on the Mac.
 
-Known gaps: printing (the postcards) is not available, and only the first scene has been played by the
+Printing (2026-11-21): a scripted play-through paints a picture, presses
+Print and gets a PDF that matches the screen; the Mac's print dialog has been
+seen to open over an SDL window but has not been driven by a person from
+inside the game, and the Windows and Linux hand-over (opening the PDF) has
+not been run at all.
+
+Known gaps: only the first scene and the activities' first screens have been played by the
 tests. [docs/ROADMAP.md](docs/ROADMAP.md) lists everything still to build.
 
 ## How it works
@@ -192,9 +203,10 @@ your disc ──extract──> game/cd/MADEURO.EXE ──pcrecomp──> build/g
 | `src/main.c` | Maps your disc as `D:`, a folder in your home as `C:`, boots the image |
 | `src/gfx.c` | The display: GDI + `WING32.DLL` on a palette-indexed 640x480 screen, so palette fades and colour cycling work as on 256-colour Windows; smooths the dithering; draws the mouse pointer |
 | `src/xbr.c` | The optional xBR doubling of the picture |
+| `src/print.c` | The printer: the game's one printed page, kept as a PDF. `src/mac/print_mac.m` puts the Mac's print dialog on it |
 | `src/audio.c` | `waveOut` on SDL audio, with buffers reported done when actually heard (the game times animation by it); MCI for the music |
 | `src/midi.c` | Standard MIDI Files on AudioToolbox |
-| `src/win/` | Windows only: the POSIX calls pcrecomp's Win32 layer makes, on the Windows API; MIDI on MCI |
+| `src/win/` | Windows only: the POSIX calls pcrecomp's Win32 layer makes, on the Windows API; MIDI on MCI; opening a printed PDF |
 | `src/platform.c` | Where the player's files live on each system |
 | `src/shims.c` | The CD-ROM drive check, the installer's registry entry, the clock, the window's size |
 | `src/debug.c` | A script driver for tests; screenshots |
