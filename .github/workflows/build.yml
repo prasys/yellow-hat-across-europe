@@ -62,18 +62,22 @@ jobs:
       - name: Launcher and app folder
         run: make STUB=1 app
 
-  # Linux has not been ported yet (docs/briefs/04): this job shows how far the
-  # build gets there, and does not hold a pull request back.
+  # Linux: x86-64 and arm64. FluidSynth is installed so the MIDI player in
+  # src/midi.c is compiled; the second build checks the program without it.
   linux:
-    runs-on: ubuntu-latest
-    continue-on-error: true
+    strategy:
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
-      - name: SDL
-        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev libsdl2-ttf-dev
+      - name: SDL, FluidSynth
+        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev libsdl2-ttf-dev libfluidsynth-dev
       - name: Engine, with an empty lift
         run: make -j4 STUB=1
       - name: It starts
         run: scripts/smoke.sh build/stub/madeline
+      - name: Engine, without FluidSynth
+        run: make clean && make -j4 STUB=1 FLUIDSYNTH=0 && scripts/smoke.sh build/stub/madeline

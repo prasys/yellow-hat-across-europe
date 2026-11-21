@@ -58,9 +58,12 @@ Requirements: `brew install sdl2 sdl2_ttf`, Python 3 with `capstone` (the lift
 script makes `.venv` itself), and `ffmpeg` if you want contact sheets.
 On Windows: an MSYS2 UCRT64 shell with the packages in the README; the
 binary is `build/madeline.exe` and every command above is run from that shell.
+On Linux: the packages in the README (SDL2, SDL2_ttf, FluidSynth and a
+SoundFont, 7z); `make desktop` stands in for `make app`.
 
 CI (`.github/workflows/build.yml`) builds `make STUB=1` and the launchers on
-macOS and Windows, and tries Linux. It has no game, so it cannot tell whether
+macOS and Windows, and the engine on Linux (x86-64 and arm64, with and
+without FluidSynth). It has no game, so it cannot tell whether
 the game plays.
 
 There is no unit-test suite. "It builds" is not verification: run a playtest
@@ -74,7 +77,7 @@ that reaches the code you changed and look at the screenshots.
 | `src/gfx.c` | All of GDI32 + WING32 + `GetDC`/`ReleaseDC`, on a palette-indexed 640x480 screen |
 | `src/xbr.c` | `upscale=xbr`: the finished picture doubled by the xBR rule, for the changed part only, on a few threads. `gfx.c` hands it to the presenter through its 16-bit "compose" hook, which is why the mouse still counts 640x480 (see the comment there). `MADELINE_UPSCALE=xbr` for tests: `shot` then writes 1280x960; `MADELINE_GFXTRACE=1` prints its timings |
 | `src/audio.c` | `waveOut*` on SDL (via win32hle's stream mixer) and `mciSendCommandA` |
-| `src/midi.c` | MIDI files on AudioToolbox; silent stand-in elsewhere |
+| `src/midi.c` | MIDI files on AudioToolbox (macOS), FluidSynth into a win32hle mixer stream (Linux, `HAVE_FLUIDSYNTH`); silent stand-in elsewhere |
 | `src/shims.c` | CD drive type, registry, the clock + idle throttle, window maximize |
 | `src/platform.c` | Per-system data folder (macOS / XDG / `%APPDATA%`), `mkdir -p`. New OS differences go here, not in `#ifdef`s scattered through the other files |
 | `src/debug.c` | `MADELINE_SCRIPT` test driver; F9 / `SIGUSR1` screenshots |

@@ -117,15 +117,32 @@ Ordered by how much each matters to someone actually playing.
 
 Order: Linux, then Windows. Full checklists are in the briefs; the summary:
 
-**Linux** ([brief 04](briefs/04-linux-build.md)) - expected to be close:
+**Linux** ([brief 04](briefs/04-linux-build.md)):
 
 - [x] Per-system data folder (`src/platform.c`, XDG on Linux) and scripts
-      that do not need macOS tools (2026-11-15; verified on macOS only).
-- [ ] First build and win32hle selftests on Linux; guest memory base address.
-- [ ] Headless playtest to the station (case-sensitive filesystem).
-- [ ] Window, sound, pointer checked on X11 and Wayland.
-- [ ] MIDI through FluidSynth.
-- [ ] Launcher or not; desktop entry; CI without a game.
+      that do not need macOS tools (2026-11-15; run on Linux 2026-11-21).
+- [x] First build (2026-11-21, CachyOS x86-64, GCC 16, SDL 2.32): built and
+      lifted with no source change. win32hle's 15 selftests pass based, with
+      `RECOMP_MEM_BASE=0x100000000000` (48-bit address space). An arm64
+      kernel with a 39-bit address space could not map that; untried.
+- [x] Headless playtest to the station, save on quit, "old game" from it
+      (2026-11-21). Case: every file the game asked for was found; the only
+      miss is `mad400\palanim.dat`, which is not on the disc (NOTES).
+- [x] MIDI through FluidSynth (2026-11-21): `src/midi.c` renders into a
+      win32hle mixer stream on its own thread; `soundfont=` or the system's
+      SoundFont; silent with one line when there is none. Checked by trace
+      with a made-up SoundFont: the tune loads, plays, and its end is reported
+      (`MM_MCINOTIFY`). With Arch's `soundfont-fluid` installed,
+      `FluidR3_GM.sf2` is found by itself and loads in 75 ms. Not yet
+      listened to.
+- [x] Desktop entry (`make desktop`, the icon redrawn as `launcher/icon.svg`)
+      and CI on x86-64 and arm64, with and without FluidSynth (2026-11-21).
+- [ ] A person plays to the station in a window, with speech and music:
+      picture, pointer (also at a fractional display scale), F8-F12, the
+      close button's dialog, on Wayland and on X11 (`SDL_VIDEODRIVER=x11`).
+      So far a window has only been opened and closed by a script, on Wayland.
+- [ ] Launcher: none on Linux; decide whether one is wanted (GTK, or a
+      terminal menu) before building one.
 
 **Windows** ([brief 05](briefs/05-windows-build.md)) - a real port:
 
@@ -169,7 +186,7 @@ Order: Linux, then Windows. Full checklists are in the briefs; the summary:
       `.github/workflows/build.yml`. `make STUB=1` puts an empty lift in
       `build/stub`, so `src/` compiles and links against the pinned pcrecomp;
       `scripts/smoke.sh` checks the program starts; the launchers are built.
-      macOS and Windows must pass; Linux runs but may fail until brief 04.
+      macOS, Windows and Linux (x86-64 and arm64) must pass.
 - [ ] CI, left: nothing in it plays the game (it has none). Tests that need
       no game would add to it: xBR on a made-up picture, the settings file,
       win32hle's selftests.

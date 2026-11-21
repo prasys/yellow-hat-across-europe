@@ -37,6 +37,13 @@ EXE      :=
 LIBS     := $(shell pkg-config --libs sdl2 SDL2_ttf) -lpthread -lm
 ifeq ($(UNAME),Darwin)
 LIBS     += -framework AudioToolbox -framework CoreFoundation
+else ifneq ($(FLUIDSYNTH),0)
+# Linux: the MIDI music on FluidSynth (src/midi.c), when it is installed.
+# Without it (or with FLUIDSYNTH=0) the program builds and the music is silent.
+ifneq (,$(shell pkg-config --exists fluidsynth && echo yes))
+CFLAGS   += -DHAVE_FLUIDSYNTH $(shell pkg-config --cflags fluidsynth)
+LIBS     += $(shell pkg-config --libs fluidsynth)
+endif
 endif
 endif
 BIN      := $(B)/madeline$(EXE)
@@ -158,6 +165,22 @@ engine-into-app: $(BIN)
 launch: app
 	open "$(APP)"
 endif
+ifeq ($(UNAME),Linux)
+# Linux has no launcher app: `make desktop` puts the game in the desktop's
+# menu instead, for this user only. It starts this checkout's engine on this
+# checkout's disc. The file is named after the program so a Wayland desktop
+# matches it to the window (SDL's app id is the program's name).
+# Remove it with `make undesktop`.
+APPS     := $(or $(XDG_DATA_HOME),$(HOME)/.local/share)
+desktop: $(BIN)
+	@mkdir -p "$(APPS)/applications" "$(APPS)/icons/hicolor/scalable/apps"
+	cp launcher/icon.svg "$(APPS)/icons/hicolor/scalable/apps/madeline.svg"
+	@printf '[Desktop Entry]\nType=Application\nName=Yellow Hat Across Europe\nGenericName=Madeline: European Adventures\nComment=Madeline: European Adventures (1996), from your own disc\nExec="%s" "%s"\nIcon=madeline\nTerminal=false\nCategories=Game;KidsGame;\nStartupWMClass=madeline\n' \
+	  "$(abspath $(BIN))" "$(abspath $(CD))" > "$(APPS)/applications/madeline.desktop"
+	@echo "added $(APPS)/applications/madeline.desktop"
+undesktop:
+	rm -f "$(APPS)/applications/madeline.desktop" "$(APPS)/icons/hicolor/scalable/apps/madeline.svg"
+endif
 clean:
 	rm -rf build
-.PHONY: all lift extract run app engine-into-app launch clean FORCE
+.PHONY: all lift extract run app engine-into-app launch desktop undesktop clean FORCE
