@@ -37,6 +37,20 @@ int  madeline_gfx_upscale(int on);              /* show the picture doubled by x
 void madeline_xbr2x(const uint32_t *src, int w, int h, uint32_t *dst, int x0, int y0, int x1, int y1);   /* xbr.c */
 void madeline_gfx_pointer(void);              /* while idle: redraw the mouse pointer if it moved or changed */
 const uint32_t *madeline_frame(int *w, int *h); /* the picture now (pointer included), XRGB */
+
+/* print.c: the printer. gfx.c owns the GDI calls a printer shares with the
+ * screen and passes them on when they are for this device context. */
+#define MADELINE_PRINTER_DC 0x5D000001u
+extern const win32hle_shim madeline_print[];    /* WIN.INI's default printer, CreateDCA, StartDoc ... EndDoc */
+void     madeline_print_init(const char *save_root);    /* pages go to <save_root>/prints, as PDFs */
+uint32_t madeline_print_caps(uint32_t index);   /* GetDeviceCaps */
+uint32_t madeline_print_stretch(void);          /* StretchDIBits, inside that shim: reads its arguments */
+void     madeline_print_close(void);            /* DeleteDC */
+/* Give a finished PDF to the system: its print dialog (macOS, src/mac), or
+ * whatever opens PDFs (platform.c, src/win). Returns when the player is done
+ * with a dialog, or at once; 0 if nothing could be started. */
+int      madeline_print_hand_over(const char *pdf, const char *title);
+
 void madeline_screenshots_init(const char *save_root);   /* F9 / SIGUSR1 -> <save_root>/screenshots */
 void madeline_debug_tick(uint32_t now_ms);      /* debug.c: MADELINE_SCRIPT */
 

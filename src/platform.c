@@ -8,6 +8,9 @@
  *
  * MADELINE_SAVE_DIR overrides all three (the tests use it). The macOS and
  * Windows branches have been run; Linux not yet (docs/briefs/04).
+ *
+ * And, for a system with neither a print dialog of ours (src/mac) nor
+ * ShellExecute (src/win): opening a printed page's PDF.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,6 +23,11 @@
 #define make_dir(p) _mkdir(p)
 #else
 #define make_dir(p) mkdir(p, 0755)
+#endif
+#if !defined(_WIN32) && !defined(__APPLE__)
+#include <spawn.h>
+#include <sys/wait.h>
+extern char **environ;
 #endif
 
 void madeline_data_dir(char *out, size_t n) {
@@ -51,3 +59,16 @@ void madeline_make_dirs(const char *path) {
     }
     make_dir(tmp);
 }
+
+/* A printed page (print.c) on Linux and the like: the desktop's PDF viewer,
+ * which has the print dialog. Not yet run anywhere (docs/briefs/04). */
+#if !defined(_WIN32) && !defined(__APPLE__)
+int madeline_print_hand_over(const char *pdf, const char *title) {
+    char *const argv[] = { "xdg-open", (char *)pdf, NULL };
+    pid_t pid;
+    int status = 0;
+    (void)title;
+    if (posix_spawnp(&pid, argv[0], NULL, NULL, argv, environ) != 0) return 0;
+    return waitpid(pid, &status, 0) == pid && WIFEXITED(status) && WEXITSTATUS(status) == 0;   /* it returns once the viewer is started */
+}
+#endif

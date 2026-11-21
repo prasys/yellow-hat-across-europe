@@ -31,18 +31,20 @@ EXE      := .exe
 CFLAGS   := -Isrc/win -D_FILE_OFFSET_BITS=64 -DSDL_MAIN_HANDLED $(CFLAGS)
 HLE_SRC  := $(filter-out %/wsock32.c,$(HLE_SRC))
 HOST_SRC += $(wildcard src/win/*.c)
-LIBS     := -lSDL2_ttf -lSDL2 -lwinmm -lpthread -lm
+LIBS     := -lSDL2_ttf -lSDL2 -lwinmm -lshell32 -lpthread -lm
 else
 EXE      :=
 LIBS     := $(shell pkg-config --libs sdl2 SDL2_ttf) -lpthread -lm
 ifeq ($(UNAME),Darwin)
-LIBS     += -framework AudioToolbox -framework CoreFoundation
+# src/mac: the print dialog (Objective-C).
+HOST_SRC += $(wildcard src/mac/*.m)
+LIBS     += -framework AudioToolbox -framework CoreFoundation -framework AppKit -framework PDFKit
 endif
 endif
 BIN      := $(B)/madeline$(EXE)
 
 HLE_OBJ  := $(patsubst $(HLE)/%.c,$(B)/obj/hle/%.o,$(HLE_SRC))
-SRC_OBJ  := $(patsubst src/%.c,$(B)/obj/src/%.o,$(HOST_SRC))
+SRC_OBJ  := $(patsubst src/%.m,$(B)/obj/src/%.o,$(patsubst src/%.c,$(B)/obj/src/%.o,$(HOST_SRC)))
 GEN_OBJ  := $(B)/obj/gen/recomp_0000.o $(B)/obj/gen/recomp_dispatch.o
 
 all: $(BIN)
@@ -56,6 +58,9 @@ $(B)/obj/hle/%.o: $(HLE)/%.c
 $(B)/obj/src/%.o: src/%.c
 	@mkdir -p $(@D)
 	$(CC) $(OPT) -Wall $(CFLAGS) -c $< -o $@
+$(B)/obj/src/%.o: src/%.m
+	@mkdir -p $(@D)
+	$(CC) $(OPT) -Wall -fobjc-arc -c $< -o $@
 $(B)/obj/gen/%.o: $(B)/gen/%.c
 	@mkdir -p $(@D)
 	$(CC) $(GENOPT) -w $(CFLAGS) -include $(B)/gen/recomp_funcs.h -c $< -o $@
