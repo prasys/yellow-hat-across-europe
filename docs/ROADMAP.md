@@ -101,9 +101,11 @@ Ordered by how much each matters to someone actually playing.
       shader path. Checked: headless shots, one look at a real window on
       Windows, a save and quit with it on. Not yet: played through with it
       on, the movies watched for speed, macOS or Linux built with it.
-- [ ] xBR, left: a toggle in the macOS launcher (it keeps the `upscale=`
-      line but shows no control); 3x or 4x for very large screens; Anime4K
-      as a second choice if a shader path ever exists.
+- [x] xBR in the macOS launcher (2026-11-21): a toggle under Picture, as in
+      the Windows one. macOS builds with xBR and headless shots are right
+      (1280x960); a real window with it on has not been looked at yet.
+- [ ] xBR, left: 3x or 4x for very large screens; Anime4K as a second
+      choice if a shader path ever exists.
 - [ ] `scripts/playtest.sh` cannot make its contact sheet with ffmpeg builds
       that lack file-pattern input (MSYS2's): the shots are still written.
 - [x] **Intro skip** (2026-11-15): `--skip-intro` or `skip_intro=1` in

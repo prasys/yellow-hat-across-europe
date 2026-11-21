@@ -80,7 +80,7 @@ that reaches the code you changed and look at the screenshots.
 | `src/debug.c` | `MADELINE_SCRIPT` test driver; F9 / `SIGUSR1` screenshots |
 | `src/madeline.h` | What the files above share |
 | `src/win/` | Windows (MSYS2 UCRT64) only. `compat_win.c` + headers named after the POSIX ones (`unistd.h`, `dirent.h`, `sys/mman.h`...): first on the include path there, they give win32hle what MinGW lacks. `midi_win.c`: MIDI on MCI. `wsock_stub.c`: an empty WSOCK32. The only files that include `<windows.h>`; they include nothing of win32hle's (its Win32 constants would clash) |
-| `launcher/` | SwiftUI app (macOS 13+): edits `madeline.ini`, lists saves, unpacks a disc image, runs the engine. Built with plain `swiftc` (`make app`), no Xcode project. `launcher --snapshot FILE` writes a picture of its window, for checking layout |
+| `launcher/` | SwiftUI app (macOS 13+): edits `madeline.ini` (every setting the engine reads from it, `upscale` included: a new one gets a control here and in `launcher/win/`), lists saves, unpacks a disc image, runs the engine. Built with plain `swiftc` (`make app`), no Xcode project. `launcher --snapshot FILE` writes a picture of its window, for checking layout |
 | `launcher/win/` | The same launcher for Windows: one C file on plain Win32, built by `make app` into `build/app/` with the engine and its DLLs. It honours `MADELINE_SAVE_DIR` and `MADELINE_ENGINE`, takes a disc image or folder as its argument, and has `--snapshot FILE.bmp` too: check it against a test folder, never the player's |
 | `scripts/` | extract, lift, playtest, dis |
 | `docs/` | NOTES (findings), ROADMAP (to do), `briefs/` (work orders), `MADEURO.sha256` (the build targeted) |
