@@ -51,7 +51,7 @@ Already portable:
       `madeline.ini`), silent with a one-line notice when neither is there.
       `madeline_midi_finished` must turn true at the end of the file: the game
       restarts its music on that.
-- [ ] **Launcher.** The SwiftUI app is macOS-only. On Linux the game runs
+- [x] **Launcher.** (GTK 4, `launcher/linux/`, 2026-11-22.) The SwiftUI app is macOS-only. On Linux the game runs
       from the command line and `madeline.ini`; decide whether a small
       launcher is wanted (GTK, or a terminal menu) before building one.
 - [x] **Desktop entry and icon** (`.desktop`, the PNG from

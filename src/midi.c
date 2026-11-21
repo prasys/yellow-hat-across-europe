@@ -67,6 +67,7 @@ int madeline_midi_finished(void) {
  * soundfont= in madeline.ini, else the usual system places. With none, the
  * music is silent (one line says so) and the game goes on, as before. */
 #include <fluidsynth.h>
+#include "soundfonts.h"
 #include <fcntl.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -86,24 +87,13 @@ static char g_path[1024];
 
 static int readable(const char *p) { return p && *p && access(p, R_OK) == 0; }
 static int find_soundfont(char *out, size_t n) {
-    static const char *const known[] = {
-        "/usr/share/soundfonts/default.sf2",             /* Arch: a link to whichever is installed */
-        "/usr/share/soundfonts/FluidR3_GM.sf2",          /* Arch soundfont-fluid, Fedora fluid-soundfont-gm */
-        "/usr/share/sounds/sf2/FluidR3_GM.sf2",          /* Debian/Ubuntu fluid-soundfont-gm */
-        "/usr/share/sounds/sf3/default-GM.sf3",          /* Debian/Ubuntu musescore-general-soundfont */
-        "/usr/share/sounds/sf2/default-GM.sf2",
-        "/usr/share/sounds/sf2/TimGM6mb.sf2",            /* Debian/Ubuntu timgm6mb-soundfont */
-        "/usr/share/soundfonts/freepats-general-midi.sf2",
-        "/usr/share/soundfonts/default.sf3",
-        "/usr/local/share/soundfonts/default.sf2",
-    };
     if (madeline_soundfont[0]) {                         /* the player's own choice: no guessing behind it */
         if (readable(madeline_soundfont)) { snprintf(out, n, "%s", madeline_soundfont); return 1; }
         fprintf(stderr, "[midi] soundfont=%s cannot be read\n", madeline_soundfont);
         return 0;
     }
-    for (size_t i = 0; i < sizeof known / sizeof *known; i++)
-        if (readable(known[i])) { snprintf(out, n, "%s", known[i]); return 1; }
+    for (size_t i = 0; i < MADELINE_SOUNDFONT_COUNT; i++)   /* soundfonts.h, shared with the launcher */
+        if (readable(madeline_soundfont_paths[i])) { snprintf(out, n, "%s", madeline_soundfont_paths[i]); return 1; }
     char *def = NULL;                                    /* FluidSynth's own compiled-in default */
     if (g_settings && fluid_settings_dupstr(g_settings, "synth.default-soundfont", &def) == FLUID_OK && readable(def)) {
         snprintf(out, n, "%s", def);

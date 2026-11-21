@@ -137,12 +137,30 @@ Order: Linux, then Windows. Full checklists are in the briefs; the summary:
       listened to.
 - [x] Desktop entry (`make desktop`, the icon redrawn as `launcher/icon.svg`)
       and CI on x86-64 and arm64, with and without FluidSynth (2026-11-21).
-- [ ] A person plays to the station in a window, with speech and music:
-      picture, pointer (also at a fractional display scale), F8-F12, the
-      close button's dialog, on Wayland and on X11 (`SDL_VIDEODRIVER=x11`).
-      So far a window has only been opened and closed by a script, on Wayland.
-- [ ] Launcher: none on Linux; decide whether one is wanted (GTK, or a
-      terminal menu) before building one.
+- [x] Played by hand in a window (2026-11-22, KDE Plasma, Wayland) with
+      speech and music, and reported good; the close button's Yes then
+      crashed (below).
+- [ ] Left to look at: X11 (`SDL_VIDEODRIVER=x11`), the pointer at a
+      fractional display scale, each of F8-F12 one by one.
+- [x] **Launcher** (2026-11-22): `launcher/linux/launcher.c`, the Windows
+      launcher's window on GTK 4 (chosen over SDL3 and libadwaita), plus a
+      Music row for the SoundFont. `make app` puts it in `build/app/` with the
+      engine; `make desktop` puts that in the menu under one app id with the
+      engine's window. Checked against a test folder by pictures of its
+      window (dark and light themes): unpacking the ISO, the engine check,
+      building the engine for a disc when it is missing, the saves list, an
+      unreadable `soundfont=`, unknown `madeline.ini` lines kept. Play and
+      the file choosers have not been clicked through by a person yet.
+- [ ] **Crash on quitting by the close button** (found 2026-11-22, Linux,
+      by hand): answering Yes to "Exiting this way will NOT save..." can end
+      in a segfault. The game's `WM_DESTROY` handler (`0x40648F`) frees its
+      scene, including the 300 KB click mask (`[0x41E524]`, a `GlobalAlloc`
+      block); a `WM_MOUSEMOVE` still queued is then dispatched and hit-tests
+      the freed mask (`0x403109`). win32hle unmaps a large block on free, so
+      the read faults; Windows 95's heap kept it readable. Nothing is lost
+      (the player chose not to save). Fix host-side: keep large freed blocks
+      mapped for a while (a `GlobalFree` override in `src/`), or drop mouse
+      messages after `WM_DESTROY`. Not yet reproduced headless.
 
 **Windows** ([brief 05](briefs/05-windows-build.md)) - a real port:
 

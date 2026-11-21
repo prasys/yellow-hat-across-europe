@@ -67,12 +67,21 @@ sudo apt install build-essential git pkg-config libsdl2-dev libsdl2-ttf-dev \
 git submodule update --init
 make extract ISO=/path/to/your/Madeline_European_Adventures.iso
 make                                   # lifts MADEURO.EXE, builds build/madeline
-make run                               # play
-make desktop                           # optional: add it to the desktop's menu (make undesktop removes it)
+make launch                            # the launcher: settings and a Play button
+make desktop                           # optional: put the launcher in the desktop's menu (make undesktop removes it)
 ```
 
-There is no launcher app on Linux: the game starts from the command line,
-`make run` or the menu entry, with its settings in `madeline.ini`. Saves and
+![the Linux launcher, dark theme, with a disc chosen and the engine built for it](docs/launcher-linux.png)
+
+`make launch` builds the folder `build/app` and opens the launcher in it: the
+same window as on the Mac and Windows (GTK 4, so add `libgtk-4-dev` on
+Debian/Ubuntu; Arch has `gtk4` already with most desktops). It unpacks a
+disc image itself (with 7z or bsdtar), rebuilds the engine for a different
+disc through this checkout, shows which SoundFont the music will use and lets
+you choose another, and lists the saved games. `make run` starts the game
+directly instead. What the game printed on its last run from the launcher is
+in `last-run.log` beside the saves. As on the other systems, `build/app`
+contains code made from your copy of the game: do not pass it on. Saves and
 settings are in `~/.local/share/madeline-european-adventures/`
 (`$XDG_DATA_HOME`). The music is played by FluidSynth and needs a General
 MIDI SoundFont: the packages above install one where it is looked for; any
@@ -232,7 +241,7 @@ your disc ──extract──> game/cd/MADEURO.EXE ──pcrecomp──> build/g
 | `src/platform.c` | Where the player's files live on each system |
 | `src/shims.c` | The CD-ROM drive check, the installer's registry entry, the clock, the window's size |
 | `src/debug.c` | A script driver for tests; screenshots |
-| `launcher/` | The macOS app: a SwiftUI settings window and Play button around the engine. `launcher/win/`: the same window on Win32 |
+| `launcher/` | The macOS app: a SwiftUI settings window and Play button around the engine. `launcher/win/`: the same window on Win32; `launcher/linux/`: on GTK 4 |
 | `third_party/pcrecomp` | The recompiler and the Win32 layer (submodule) |
 
 [docs/NOTES.md](docs/NOTES.md) has what was learned about the executable;
