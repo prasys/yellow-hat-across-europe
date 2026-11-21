@@ -11,7 +11,7 @@
  *
  * The same choices can be kept in madeline.ini in the save folder
  * (skip_intro, fullscreen, remember_name, smooth, upscale, scale, bars,
- * gamepad); the command
+ * gamepad, pointer); the command
  * line wins.
  *
  * No game data is built into this program: it maps MADEURO.EXE from the CD
@@ -181,6 +181,11 @@ int main(int argc, char **argv) {
     recomp_host_init();
     madeline_gfx_init();
     madeline_gfx_smooth(smooth);
+    {
+        char pointer[16] = "plain";
+        ini_get("pointer", pointer, sizeof pointer);
+        madeline_gfx_plain_pointer(strcmp(pointer, "game") != 0);
+    }
     {
         /* upscale=xbr: the picture doubled with its edges redrawn (xbr.c). Off unless asked for. */
         char upscale[32] = "";

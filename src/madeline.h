@@ -36,6 +36,7 @@ void madeline_gfx_init(void);                   /* after recomp_host_init */
 int  madeline_gfx_smooth(int on);               /* melt the dithering (1), raw pixels (0), ask (-1); returns the state */
 int  madeline_gfx_upscale(int on);              /* show the picture doubled by xBR (1), as it is (0), ask (-1) */
 void madeline_xbr2x(const uint32_t *src, int w, int h, uint32_t *dst, int x0, int y0, int x1, int y1);   /* xbr.c */
+void madeline_gfx_plain_pointer(int on);      /* pointer=plain: one arrow instead of the game's cursor shapes */
 void madeline_gfx_pointer(void);              /* while idle: redraw the mouse pointer if it moved or changed */
 const uint32_t *madeline_frame(int *w, int *h); /* the picture now (pointer included), XRGB */
 

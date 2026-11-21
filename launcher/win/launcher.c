@@ -31,7 +31,7 @@
 
 enum {
     ID_PLAY = 1,                       /* IDOK: Enter presses it */
-    ID_CHOOSE = 100, ID_BUILD, ID_OPEN, ID_SKIP, ID_NAME, ID_FULL, ID_SMOOTH, ID_XBR, ID_PAD, ID_SCALE, ID_BARS, ID_SAVES,
+    ID_CHOOSE = 100, ID_BUILD, ID_OPEN, ID_SKIP, ID_NAME, ID_FULL, ID_SMOOTH, ID_XBR, ID_PAD, ID_PTR, ID_SCALE, ID_BARS, ID_SAVES,
     ID_DISC_STATUS = 200, ID_ENGINE_STATUS, ID_STATUS,
     ID_HINT = 300, ID_TEXT = 400,
     IDM_IMAGE = 500, IDM_FOLDER,
@@ -53,7 +53,7 @@ static const wchar_t *const SCALE_LABELS[] = { L"Smooth", L"Sharp", L"CRT monito
 #define KEYS_HINT L"F8 xBR  \u00B7  F9 screenshot  \u00B7  F10 smoothing  \u00B7  F11 full screen  \u00B7  F12 scaling"
 
 static HWND g_wnd, g_disc_status, g_disc_path, g_engine_status, g_engine_hint, g_choose, g_build, g_open,
-            g_skip, g_name, g_full, g_smooth, g_xbr, g_pad, g_scale, g_bars, g_saves, g_status, g_play;
+            g_skip, g_name, g_full, g_smooth, g_xbr, g_pad, g_ptr, g_scale, g_bars, g_saves, g_status, g_play;
 static HFONT g_font, g_bold, g_title, g_subtitle, g_playfont;
 static HBRUSH g_white;
 static int g_dpi = 96;
@@ -164,6 +164,7 @@ static void save_settings(void) {
     ini_set("smooth", checked(g_smooth) ? "1" : "0");
     ini_set("upscale", checked(g_xbr) ? "xbr" : "off");
     ini_set("gamepad", checked(g_pad) ? "1" : "0");
+    ini_set("pointer", checked(g_ptr) ? "game" : "plain");
     ini_set("scale", scale);
     ini_set("bars", SendMessageW(g_bars, CB_GETCURSEL, 0, 0) == 1 ? "black" : "blur");
     if (!ini_write()) say(L"Could not save the settings.");
@@ -178,6 +179,7 @@ static void load_settings(int first) {
         check(g_skip, ini_flag("skip_intro", 0));
         check(g_name, ini_flag("remember_name", 1));
         check(g_pad, ini_flag("gamepad", 1));
+        check(g_ptr, ini_get("pointer", v, sizeof v) && !strcmp(v, "game"));
     }
     check(g_full, ini_flag("fullscreen", 0));
     check(g_smooth, ini_flag("smooth", 1));
@@ -489,7 +491,7 @@ static void paint(HDC dc) {
     DeleteDC(m);
     SelectObject(dc, rule);
     MoveToEx(dc, 0, S(92), NULL); LineTo(dc, rc.right, S(92));
-    MoveToEx(dc, 0, S(568), NULL); LineTo(dc, rc.right, S(568));
+    MoveToEx(dc, 0, S(594), NULL); LineTo(dc, rc.right, S(594));
     RestoreDC(dc, state);
     DeleteObject(rule);
 }
@@ -581,20 +583,21 @@ static void create(void) {
     for (int i = 0; i < 5; i++) SendMessageW(g_scale, CB_ADDSTRING, 0, (LPARAM)SCALE_LABELS[i]);
     SendMessageW(g_bars, CB_ADDSTRING, 0, (LPARAM)L"Soft blur");
     SendMessageW(g_bars, CB_ADDSTRING, 0, (LPARAM)L"Black");
-    label(L"Smoothing melts the 256-colour speckle into washes of paint; xBR takes the stair-steps out of slanted lines.", L, 360, W, 18, ID_HINT, g_font);
+    g_ptr = checkbox(L"Use the game's own mouse pointers", L, 352, 284, ID_PTR);
+    label(L"Smoothing melts the 256-colour speckle into washes of paint; xBR takes the stair-steps out of slanted lines.", L, 386, W, 18, ID_HINT, g_font);
 
-    label(L"Saved games", L, 396, 280, 18, ID_TEXT, g_bold);
-    g_open = control(L"BUTTON", L"Open folder", BS_PUSHBUTTON | WS_TABSTOP, 516, 390, 100, 26, ID_OPEN, g_font);
-    g_saves = control(WC_LISTVIEWW, L"", LVS_REPORT | LVS_SINGLESEL | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP, L, 422, W, 104, ID_SAVES, g_font);
+    label(L"Saved games", L, 422, 280, 18, ID_TEXT, g_bold);
+    g_open = control(L"BUTTON", L"Open folder", BS_PUSHBUTTON | WS_TABSTOP, 516, 416, 100, 26, ID_OPEN, g_font);
+    g_saves = control(WC_LISTVIEWW, L"", LVS_REPORT | LVS_SINGLESEL | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP, L, 448, W, 104, ID_SAVES, g_font);
     SendMessageW(g_saves, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER);
     LVCOLUMNW col = { .mask = LVCF_TEXT | LVCF_WIDTH, .cx = S(270), .pszText = L"Name" };
     SendMessageW(g_saves, LVM_INSERTCOLUMNW, 0, (LPARAM)&col);
     col.cx = S(300); col.pszText = L"Saved";
     SendMessageW(g_saves, LVM_INSERTCOLUMNW, 1, (LPARAM)&col);
-    label(L"Each name signed into the book has its own game: sign in with it again and choose \u201Cold game\u201D.", L, 534, W, 18, ID_HINT, g_font);
+    label(L"Each name signed into the book has its own game: sign in with it again and choose \u201Cold game\u201D.", L, 560, W, 18, ID_HINT, g_font);
 
-    g_status = label(L"", L, 582, 450, 34, ID_HINT, g_font);
-    g_play = control(L"BUTTON", L"", BS_OWNERDRAW | WS_TABSTOP, 496, 580, 120, 36, ID_PLAY, g_playfont);
+    g_status = label(L"", L, 608, 450, 34, ID_HINT, g_font);
+    g_play = control(L"BUTTON", L"", BS_OWNERDRAW | WS_TABSTOP, 496, 606, 120, 36, ID_PLAY, g_playfont);
 }
 
 static LRESULT CALLBACK wndproc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp) {
@@ -622,7 +625,7 @@ static LRESULT CALLBACK wndproc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp) {
             ShellExecuteW(wnd, L"open", dir, NULL, NULL, SW_SHOWNORMAL);
             return 0;
         }
-        case ID_SKIP: case ID_NAME: case ID_FULL: case ID_SMOOTH: case ID_XBR: case ID_PAD:
+        case ID_SKIP: case ID_NAME: case ID_FULL: case ID_SMOOTH: case ID_XBR: case ID_PAD: case ID_PTR:
             if (HIWORD(wp) == BN_CLICKED) { save_settings(); update(); }
             return 0;
         case ID_SCALE: case ID_BARS:
@@ -762,7 +765,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmdline, int show) {
         .hIcon = hat_icon(GetSystemMetrics(SM_CXICON)), .hIconSm = hat_icon(GetSystemMetrics(SM_CXSMICON)) };
     RegisterClassExW(&wc);
     DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN;
-    RECT r = { 0, 0, S(640), S(630) }, work;
+    RECT r = { 0, 0, S(640), S(656) }, work;
     AdjustWindowRectEx(&r, style, FALSE, 0);
     SystemParametersInfoW(SPI_GETWORKAREA, 0, &work, 0);
     g_wnd = CreateWindowExW(0, wc.lpszClassName, TITLE, style,

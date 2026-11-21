@@ -20,6 +20,10 @@ Status (2026-11-15): running on macOS; see `ROADMAP.md` for what is left and
   something clickable) and hides the pointer with `ShowCursor` during movies.
   Handing them to SDL as system cursors showed nothing in the real window, so
   the host draws the pointer into the picture itself (`gfx.c`).
+  Which one is chosen from the mask byte under the pointer (from 0x403140 on):
+  resource 6 is the arrow, 2 the girl over something clickable, 7, 8 and 10
+  for other kinds of spot. `LoadCursorA` is called again at every change, so
+  it must give back the same handle each time (`shims.c`).
 
 ## Start-up checks
 

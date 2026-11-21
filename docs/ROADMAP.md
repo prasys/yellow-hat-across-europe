@@ -69,6 +69,11 @@ Ordered by how much each matters to someone actually playing.
       (`gfx.c`), from the game's own cursor resources, so it scales with the
       window and needs nothing from the window system. Shown in headless
       screenshots too. Still to confirm by eye in the real window.
+      Since 2026-11-21 a plain arrow by default (`pointer=plain`): the game's
+      changing shapes (the girl, the arrows over doors) only with
+      `pointer=game`, a switch in both launchers. The game's shapes had
+      turned into a plain arrow after a minute of play: it reloads a cursor
+      at every change and win32hle ran out of room (fixed in `shims.c`).
 - [ ] **Volume / mute**, and pausing when the window loses focus.
 - [x] **Window close** (2026-11-15): the close button / Cmd+Q now reaches the
       game as `SC_CLOSE`, so it asks before quitting unsaved, and message
@@ -245,6 +250,8 @@ Order: Linux, then Windows. Full checklists are in the briefs; the summary:
 Offer these to sp00nznet/pcrecomp rather than keep them private forever:
 
 - `RegQueryValueA` (the Win16-style call) in `advapi32.c`.
+- `LoadCursorA` giving back the same handle for the same resource
+  (`user32.c` keeps a new copy per call, in room for 16, then the stand-in).
 - `ShowWindow(SW_SHOWMAXIMIZED)` sizing the window to the screen.
 - A `waveOut` that plays, with `WHDR_DONE` on playback (`winmm.c`'s is silent).
 - `mciSendCommandA` for the `sequencer` device.

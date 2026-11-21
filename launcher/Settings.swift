@@ -131,6 +131,7 @@ final class LauncherModel: ObservableObject {
     @Published var smooth: Bool { didSet { save() } }
     @Published var xbr: Bool { didSet { save() } }
     @Published var gamepad: Bool { didSet { save() } }
+    @Published var gamePointers: Bool { didSet { save() } }
     @Published var scaling: Scaling { didSet { save() } }
     @Published var blurBars: Bool { didSet { save() } }
 
@@ -155,6 +156,7 @@ final class LauncherModel: ObservableObject {
         smooth = ini.flag("smooth", default: true)
         xbr = ini.string("upscale") == "xbr"
         gamepad = ini.flag("gamepad", default: true)
+        gamePointers = ini.string("pointer") == "game"
         scaling = Scaling(rawValue: ini.string("scale") ?? "") ?? .smooth
         blurBars = (ini.string("bars") ?? "blur") != "black"
         loading = false
@@ -185,6 +187,7 @@ final class LauncherModel: ObservableObject {
         ini.set("smooth", smooth ? "1" : "0")
         ini.set("upscale", xbr ? "xbr" : "off")
         ini.set("gamepad", gamepad ? "1" : "0")
+        ini.set("pointer", gamePointers ? "game" : "plain")
         ini.set("scale", scaling.rawValue)
         ini.set("bars", blurBars ? "blur" : "black")
         do { try ini.write(to: Paths.ini) } catch { status = "Could not save settings: \(error.localizedDescription)" }

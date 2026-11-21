@@ -69,11 +69,17 @@ static wingdc_t  *WDC(uint32_t h) { uint32_t i = h - H_WING_DC; return i < MAX_W
  * every platform. */
 #define CUR 32
 static struct { int shown, x, y; uint32_t handle; } g_ptr;    /* as last drawn */
+/* pointer=plain (the default): the arrow below everywhere, in place of the
+ * game's own shapes (the girl, the arrows over doors and exits), at the
+ * player's request. pointer=game: the game's cursors as it chose them. */
+static int g_plain_pointer = 1;
+static const hle_cursor_image_t *pointer_image(void) { return g_plain_pointer ? NULL : hle_cursor_image(g_ptr.handle); }
+void madeline_gfx_plain_pointer(int on) { g_plain_pointer = on != 0; }
 static const char *const k_arrow[] = {       /* for a cursor that is not one of the game's (IDC_ARROW) */
     "X", "XX", "X.X", "X..X", "X...X", "X....X", "X.....X", "X......X", "X.......X", "X........X",
     "X.....XXXXX", "X..X..X", "X.X X..X", "XX  X..X", "X    X..X", "     X..X", "      XX", NULL };
 static void pointer_rect(int *x0, int *y0, int *x1, int *y1) {
-    const hle_cursor_image_t *img = hle_cursor_image(g_ptr.handle);
+    const hle_cursor_image_t *img = pointer_image();
     *x0 = g_ptr.x - (img ? img->hot_x : 0), *y0 = g_ptr.y - (img ? img->hot_y : 0);
     *x1 = *x0 + CUR, *y1 = *y0 + CUR;
 }
@@ -93,7 +99,7 @@ static void draw_pointer(void) {
     int x0, y0, x1, y1;
     pointer_rect(&x0, &y0, &x1, &y1);
     changed(x0, y0, x1, y1);
-    const hle_cursor_image_t *img = hle_cursor_image(g_ptr.handle);
+    const hle_cursor_image_t *img = pointer_image();
     if (!img) {
         for (int j = 0; k_arrow[j]; j++)
             for (int i = 0; k_arrow[j][i]; i++)

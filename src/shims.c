@@ -264,6 +264,25 @@ static void m_PeekMessageA(void) {                       /* (msg, hwnd, min, max
     if (madeline_osk_message(MEM32(msg + 4), (int16_t)(l & 0xFFFF), (int16_t)(l >> 16))) MEM32(msg + 4) = 0;
 }
 
+/* Cursors. The game calls LoadCursorA every time the pointer moves onto a
+ * different kind of spot (0x403140 onwards: the mask byte under the pointer
+ * picks resource 2, 8, 10...), then SetCursor. Windows hands back the same
+ * shared handle for a resource each time; win32hle keeps a new copy per call,
+ * in room for 16, and past that answers with its stand-in, which is drawn as
+ * a plain arrow. So after a minute of play every cursor was the arrow: the
+ * first handle for each (instance, name) is kept here and given again. */
+static void m_LoadCursorA(void) {                        /* (hinst, name) */
+    static uint32_t stock, seen_inst[32], seen_name[32], seen_handle[32];
+    static int seen;
+    uint32_t hinst = A32(0), name = A32(1);
+    if (name < 0x10000u)                                 /* an id (a string name could move) */
+        for (int i = 0; i < seen; i++)
+            if (seen_inst[i] == hinst && seen_name[i] == name) RET(seen_handle[i], 2);
+    if (!stock) stock = stock_shim_va("LoadCursorA");
+    stock_shim_call(stock);
+    if (name < 0x10000u && seen < 32) seen_inst[seen] = hinst, seen_name[seen] = name, seen_handle[seen++] = g_eax;
+}
+
 /* Message boxes. win32hle prints them and answers Yes/OK; this game's are few
  * and matter (the question above; "CD-ROM missing"), so they are shown. */
 int madeline_headless;
@@ -294,6 +313,6 @@ const win32hle_shim madeline_shims[] = {
     { "DefWindowProcA", m_DefWindowProcA }, { "MessageBoxA", m_MessageBoxA }, { "PeekMessageA", m_PeekMessageA },
     { "timeGetTime", m_timeGetTime },
     { "RegOpenKeyA", m_RegOpenKeyA }, { "RegQueryValueA", m_RegQueryValueA }, { "RegCloseKey", m_RegCloseKey },
-    { "GetDriveTypeA", m_GetDriveTypeA },
+    { "GetDriveTypeA", m_GetDriveTypeA }, { "LoadCursorA", m_LoadCursorA },
     { 0, 0 }
 };

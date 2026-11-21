@@ -102,6 +102,7 @@ struct LauncherView: View {
                     Toggle("Fill in my name on the sign-in book", isOn: $model.rememberName)
                     Toggle("Start in full screen", isOn: $model.fullscreen)
                     Toggle("Play with a game controller", isOn: $model.gamepad)
+                    Toggle("Use the game's own mouse pointers", isOn: $model.gamePointers)
                 }
                 Section {
                     Toggle("Smooth the painting", isOn: $model.smooth)

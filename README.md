@@ -110,6 +110,7 @@ Options: set them in the launcher, or on the command line, or in
 | | `upscale=xbr` | Redraw edges at twice the size before scaling: slanted ink lines lose their stair-steps (F8). Off by default |
 | | `scale=sharp` | Scaling to the window: `smooth` (default), `sharp`, `crt`, `nearest`, `integer` (F12) |
 | | `gamepad=0` | Ignore game controllers |
+| | `pointer=game` | The game's own pointers, which change shape over things you can click (the girl, arrows over doors). By default a plain arrow everywhere |
 | | `bars=black` | Black beside the picture when full screen, instead of a blur of it |
 | *path* | `cd=/path` | The folder with the disc's files |
 
