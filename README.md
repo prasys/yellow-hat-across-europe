@@ -1,47 +1,136 @@
+<p align="center"><img src="docs/icon.png" width="160" alt="A yellow boater on a blue sky"></p>
+
 # The Little Girl in the Yellow Hat Across Europe
 
-A native Mac home for **Madeline: European Adventures** (Creative Wonders,
-1996): no Windows, no Wine, no emulator.
+**Madeline: European Adventures** (Creative Wonders, 1996), running as a native
+app on macOS and Windows. No Windows 95, no Wine, no emulator.
+
+## Why I made this
+
+When I was a kid I played this game and it really helped me understand
+different cultures, and a lot more. So I thought, why don't we preserve it, so
+people can share it with their whanau (family) and their kids, running on
+modern hardware.
 
 The game's own program (`MADEURO.EXE`, a 148 KB Win32s/WinG executable) is
 statically recompiled to C with [pcrecomp](https://github.com/sp00nznet/pcrecomp)
 and linked against a small host that plays the part of Windows 95: a 640x480
-256-colour screen, WinG, waveOut sound and MIDI music.
+256-colour screen, WinG, waveOut sound and MIDI music. You make that build
+yourself, from your own disc.
+
+## Where to get the game
 
 **You need your own copy of the game.** This repository contains no game code,
 art or sound, and neither does the program it builds: the lift is made on your
-machine from your disc, and the game's data is read from your disc at run time.
+machine from your disc, and the game reads its art and sound straight from your
+disc while it runs.
 
-The game has been out of print for decades. If you no longer have your disc, an
-image of it is listed at
-[Old Games Download](https://oldgamesdownload.com/game/madeline-european-adventures-u9z/)
-(the Windows ISO, English). This project is not connected with that site.
+The game has been out of print for decades. Any one of these will do:
 
-## Quick start (macOS, Apple silicon or Intel)
+- **A disc you already own.** Make an ISO of it (on a Mac, Disk Utility, then
+  File > New Image > Image from the disc), and give that file to `make extract`
+  below. This is the cleanest route.
+- **A second-hand disc.** Copies turn up on eBay and in charity shops. Same
+  steps once it arrives.
+- **An abandonware copy.** An image is listed at
+  [Old Games Download](https://oldgamesdownload.com/game/madeline-european-adventures-u9z/)
+  (the Windows ISO, English). This project is not connected with that site.
+  Abandonware is not a licence: the copyright still belongs to its owners, so
+  a copy you own is the honest way to run it.
+
+Once built, the app is for your own machine only. It contains code made from
+your copy of the game, so please do not pass it on.
+
+## What you need
+
+- A copy of the game, as above.
+- A Mac on macOS 13 or later (Apple silicon or Intel), or a Windows 10/11 PC,
+  64-bit.
+- About 700 MB free for the unpacked disc, plus room for the build.
+- A terminal. On the Mac that is Terminal; on Windows it is the MSYS2 shell.
+  Copy the commands below one at a time.
+
+## Install on a Mac
+
+**1. Install the libraries.** Homebrew does it in one line. `uv` is optional:
+without it the lift makes its own `python3 -m venv`.
 
 ```sh
-brew install sdl2 sdl2_ttf uv          # uv is optional: python3 -m venv is used without it
-git submodule update --init            # pcrecomp
+brew install sdl2 sdl2_ttf uv
+```
+
+**2. Get the code and its one submodule**, which is the recompiler:
+
+```sh
+git clone https://github.com/prasys/yellow-hat-across-europe.git
+cd yellow-hat-across-europe
+git submodule update --init
+```
+
+**3. Unpack your disc, once.** Point `ISO=` at your own image:
+
+```sh
 make extract ISO=/path/to/your/Madeline_European_Adventures.iso
+```
+
+The disc's files land in `game/cd/`, which git ignores. If you already have
+them in a folder, skip this step and use `make CD=/that/folder` and
+`build/madeline /that/folder`.
+
+**4. Build the game.** This lifts `MADEURO.EXE` and compiles it, about fifteen
+seconds on a recent Mac:
+
+```sh
 make                                   # lifts MADEURO.EXE, builds build/madeline
+```
+
+**5. Open the app.**
+
+```sh
 make launch                            # the app: settings and a Play button
 ```
 
 `make launch` builds `build/The Little Girl in the Yellow Hat Across Europe.app`
 and opens it. `make run` starts the game directly instead.
 
-### Windows 10/11, 64-bit
+## Install on Windows 10/11 (64-bit)
 
-The same program builds for Windows with [MSYS2](https://www.msys2.org/).
-Install it, open **MSYS2 UCRT64** from the Start menu, and:
+The same program builds on Windows with [MSYS2](https://www.msys2.org/). Install
+it from that page, then open **MSYS2 UCRT64** from the Start menu. Every command
+below goes in that shell.
+
+**1. Install the build tools and libraries.**
 
 ```sh
 pacman -S --needed make git diffutils mingw-w64-ucrt-x86_64-gcc \
   mingw-w64-ucrt-x86_64-pkgconf mingw-w64-ucrt-x86_64-SDL2 mingw-w64-ucrt-x86_64-SDL2_ttf \
   mingw-w64-ucrt-x86_64-python mingw-w64-ucrt-x86_64-python-capstone
+```
+
+**2. Get the code and its one submodule.**
+
+```sh
+git clone https://github.com/prasys/yellow-hat-across-europe.git
+cd yellow-hat-across-europe
 git submodule update --init
+```
+
+**3. Unpack your disc, once.** MSYS2 paths start at the drive, so a file on
+your Desktop is `/c/Users/you/Desktop/...`:
+
+```sh
 make extract ISO=/c/Users/you/Desktop/Madeline_European_Adventures.iso
+```
+
+**4. Build it.**
+
+```sh
 make                                   # lifts MADEURO.EXE, builds build/madeline.exe
+```
+
+**5. Open the launcher.**
+
+```sh
 make launch                            # the launcher: settings and a Play button
 ```
 
@@ -56,11 +145,7 @@ run from the launcher is in `last-run.log` there. As on the Mac, `build/app`
 contains code made from your copy of the game: do not pass it on.
 ([brief 05](docs/briefs/05-windows-build.md) has what is left.)
 
-`make extract` unpacks the disc into `game/cd/` (git-ignored). If you already
-have the disc's files in a folder, skip it and use `make CD=/that/folder` and
-`build/madeline /that/folder`.
-
-Playing:
+## Playing
 
 - The mouse does everything; the sign-in book takes your name from the keyboard
   (or from one drawn on the screen: see below).
@@ -208,6 +293,20 @@ controller or touch screen has been tried yet, on any system.
 
 Known gaps: only the first scene and the activities' first screens have been played by the
 tests. [docs/ROADMAP.md](docs/ROADMAP.md) lists everything still to build.
+
+## Where this is going
+
+The next big thing I want is the game on a tablet: iPads and iPhones, and
+Android tablets. The picture is 4:3 and the mouse is nearly all the game asks
+for, which suits a touch screen. Two pieces are already in: `src/osk.c` draws a
+keyboard on the screen for the sign-in book when there are no real keys, and
+`src/pad.c` already tells a finger tap from a mouse click. What is missing is
+real hardware to try it on, and a way to build the game for those devices.
+
+A tablet with a game controller is the shortest road to playing on one today,
+because a controller works and a touch screen has never been near it.
+
+The order I want to take these in is in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## How it works
 
