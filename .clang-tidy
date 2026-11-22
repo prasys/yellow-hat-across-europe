@@ -4,11 +4,14 @@
 #   insecureAPI      flags every memcpy/snprintf: noise here.
 #   ArrayBound       "tainted offset" on lines read with fgets, already bounded.
 #   no-int-to-ptr    guest addresses are ints by design (hle_ptr).
+#   EnumCastOutOfRange  OR-ed flag enums (GLib's G_SUBPROCESS_FLAGS_*, Win32's)
+#                    are not single enumerators; LLVM 18 (CI's) reports them.
 Checks: >
   -*,
   clang-analyzer-*,
   -clang-analyzer-security.insecureAPI.*,
   -clang-analyzer-security.ArrayBound,
+  -clang-analyzer-optin.core.EnumCastOutOfRange,
   bugprone-suspicious-realloc-usage,
   bugprone-misplaced-widening-cast,
   bugprone-sizeof-expression,
