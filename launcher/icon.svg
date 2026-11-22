@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The project's icon (a yellow boater on a blue sky), the same drawing as
+     launcher/make_icon.swift, for Linux desktops (make desktop). Nothing in it
+     comes from the game. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="100" x2="0" y2="924" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5ca8f2"/>
+      <stop offset="1" stop-color="#214da8"/>
+    </linearGradient>
+    <clipPath id="tile"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath>
+    <clipPath id="brim"><ellipse cx="512" cy="588" rx="316" ry="88"/></clipPath>
+    <clipPath id="crown"><rect x="356" y="336" width="312" height="250" rx="70"/></clipPath>
+    <clipPath id="front"><rect x="0" y="588" width="1024" height="1024"/></clipPath>
+    <filter id="tileShadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#000" flood-opacity="0.30"/>
+    </filter>
+    <filter id="brimShadow" x="-10%" y="-20%" width="120%" height="160%">
+      <feDropShadow dx="0" dy="16" stdDeviation="13" flood-color="#000" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="#336bc7" filter="url(#tileShadow)"/>
+  <g clip-path="url(#tile)">
+    <rect x="100" y="100" width="824" height="824" fill="url(#sky)"/>
+    <circle cx="512" cy="450" r="250" fill="#fff7cc" fill-opacity="0.22"/>
+    <ellipse cx="300" cy="950" rx="380" ry="190" fill="#4d9e5c"/>
+    <ellipse cx="810" cy="970" rx="390" ry="180" fill="#388552"/>
+  </g>
+
+  <g transform="rotate(-8.02 512 512)" stroke="#1a1f38" stroke-linecap="round" stroke-linejoin="round">
+    <!-- ribbon tails, behind the brim -->
+    <path d="M668 560 Q770 610 800 742 M640 575 Q700 660 704 782" fill="none" stroke-width="40"/>
+    <!-- brim -->
+    <ellipse cx="512" cy="588" rx="316" ry="88" fill="#fcd12e" stroke="none" filter="url(#brimShadow)"/>
+    <g clip-path="url(#brim)" stroke="none">
+      <ellipse cx="512" cy="648" rx="316" ry="88" fill="#eda81a"/>
+      <ellipse cx="512" cy="574" rx="306" ry="82" fill="#fcd12e"/>
+    </g>
+    <ellipse cx="512" cy="588" rx="316" ry="88" fill="none" stroke-width="22"/>
+    <!-- crown, with its band and a highlight -->
+    <rect x="356" y="336" width="312" height="250" rx="70" fill="#fcd12e" stroke="none"/>
+    <g clip-path="url(#crown)" stroke="none">
+      <rect x="340" y="498" width="344" height="60" fill="#1a1f38"/>
+      <ellipse cx="461" cy="387" rx="75" ry="35" fill="#fff" fill-opacity="0.28"/>
+    </g>
+    <rect x="356" y="336" width="312" height="250" rx="70" fill="none" stroke-width="22"/>
+    <!-- the front of the brim passes in front of the crown -->
+    <g clip-path="url(#front)">
+      <ellipse cx="512" cy="588" rx="316" ry="88" fill="#fcd12e" stroke="none"/>
+      <g clip-path="url(#brim)" stroke="none">
+        <ellipse cx="512" cy="648" rx="316" ry="88" fill="#eda81a"/>
+      </g>
+      <ellipse cx="512" cy="588" rx="316" ry="88" fill="none" stroke-width="22"/>
+    </g>
+  </g>
+</svg>

@@ -10,6 +10,9 @@ mkdir -p "$DEST"
 if command -v bsdtar >/dev/null 2>&1; then bsdtar -xf "$ISO" -C "$DEST"
 elif command -v 7z >/dev/null 2>&1; then 7z x -y -o"$DEST" "$ISO" >/dev/null
 else echo "need bsdtar (libarchive-tools) or 7z to unpack a disc image" >&2; exit 69; fi
+# libarchive 3.8 (Linux, MSYS2) lists this disc as empty without an error: its
+# root directory is not found (7z reads it). Try 7z before giving up.
+if [ ! -f "$DEST/MADEURO.EXE" ] && command -v 7z >/dev/null 2>&1; then 7z x -y -o"$DEST" "$ISO" >/dev/null; fi
 chmod -R u+rwX "$DEST"
 # Windows (MSYS2): the libarchive there has been seen to list this disc as
 # empty without an error. Windows reads disc images itself: mount it, copy the

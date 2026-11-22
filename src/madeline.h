@@ -31,6 +31,7 @@ void madeline_midi_seek(int position);
 void madeline_midi_play(int from);              /* from < 0: where it is */
 void madeline_midi_stop(void);
 int  madeline_midi_finished(void);
+extern char madeline_soundfont[1024];           /* soundfont= in madeline.ini: FluidSynth's sound bank (Linux) */
 
 void madeline_gfx_init(void);                   /* after recomp_host_init */
 int  madeline_gfx_smooth(int on);               /* melt the dithering (1), raw pixels (0), ask (-1); returns the state */

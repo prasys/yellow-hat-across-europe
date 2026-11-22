@@ -184,15 +184,54 @@ Ordered by how much each matters to someone actually playing.
 
 Order: Linux, then Windows, then tablets. Full checklists are in the briefs; the summary:
 
-**Linux** ([brief 04](briefs/04-linux-build.md)) - expected to be close:
+**Linux** ([brief 04](briefs/04-linux-build.md)):
 
 - [x] Per-system data folder (`src/platform.c`, XDG on Linux) and scripts
-      that do not need macOS tools (2026-11-15; verified on macOS only).
-- [ ] First build and win32hle selftests on Linux; guest memory base address.
-- [ ] Headless playtest to the station (case-sensitive filesystem).
-- [ ] Window, sound, pointer checked on X11 and Wayland.
-- [ ] MIDI through FluidSynth.
-- [ ] Launcher or not; desktop entry; CI without a game.
+      that do not need macOS tools (2026-11-15; run on Linux 2026-11-21).
+- [x] First build (2026-11-21, CachyOS x86-64, GCC 16, SDL 2.32): built and
+      lifted with no source change. win32hle's 15 selftests pass based, with
+      `RECOMP_MEM_BASE=0x100000000000` (48-bit address space). An arm64
+      kernel with a 39-bit address space could not map that; untried.
+- [x] Headless playtest to the station, save on quit, "old game" from it
+      (2026-11-21). Case: every file the game asked for was found; the only
+      miss is `mad400\palanim.dat`, which is not on the disc (NOTES).
+- [x] MIDI through FluidSynth (2026-11-21): `src/midi.c` renders into a
+      win32hle mixer stream on its own thread; `soundfont=` or the system's
+      SoundFont; silent with one line when there is none. Checked by trace
+      with a made-up SoundFont: the tune loads, plays, and its end is reported
+      (`MM_MCINOTIFY`). With Arch's `soundfont-fluid` installed,
+      `FluidR3_GM.sf2` is found by itself and loads in 75 ms. Not yet
+      listened to.
+- [x] Desktop entry (`make desktop`, the icon redrawn as `launcher/icon.svg`)
+      and CI on x86-64 and arm64, with and without FluidSynth (2026-11-21).
+- [x] Played by hand in a window (2026-11-22, KDE Plasma, Wayland) with
+      speech and music, and reported good; the close button's Yes then
+      crashed (below).
+- [ ] Left to look at: X11 (`SDL_VIDEODRIVER=x11`), the pointer at a
+      fractional display scale, each of F8-F12 one by one.
+- [x] **Launcher** (2026-11-22): `launcher/linux/launcher.c`, the Windows
+      launcher's window on GTK 4 (chosen over SDL3 and libadwaita), plus a
+      Music row for the SoundFont. `make app` puts it in `build/app/` with the
+      engine; `make desktop` puts that in the menu under one app id with the
+      engine's window. Checked against a test folder by pictures of its
+      window (dark and light themes): unpacking the ISO, the engine check,
+      building the engine for a disc when it is missing, the saves list, an
+      unreadable `soundfont=`, unknown `madeline.ini` lines kept. Play and
+      the file choosers have not been clicked through by a person yet.
+- [ ] **Launcher: the controller and pointer switches.** `main` added
+      `gamepad=` and `pointer=` (macOS and Windows launchers have them); the
+      GTK launcher has no control for them yet. It keeps `madeline.ini` lines
+      it does not know, so a setting made by hand survives.
+- [ ] **Crash on quitting by the close button** (found 2026-11-22, Linux,
+      by hand): answering Yes to "Exiting this way will NOT save..." can end
+      in a segfault. The game's `WM_DESTROY` handler (`0x40648F`) frees its
+      scene, including the 300 KB click mask (`[0x41E524]`, a `GlobalAlloc`
+      block); a `WM_MOUSEMOVE` still queued is then dispatched and hit-tests
+      the freed mask (`0x403109`). win32hle unmaps a large block on free, so
+      the read faults; Windows 95's heap kept it readable. Nothing is lost
+      (the player chose not to save). Fix host-side: keep large freed blocks
+      mapped for a while (a `GlobalFree` override in `src/`), or drop mouse
+      messages after `WM_DESTROY`. Not yet reproduced headless.
 
 **Windows** ([brief 05](briefs/05-windows-build.md)) - a real port:
 
@@ -259,7 +298,7 @@ Order: Linux, then Windows, then tablets. Full checklists are in the briefs; the
       `.github/workflows/build.yml`. `make STUB=1` puts an empty lift in
       `build/stub`, so `src/` compiles and links against the pinned pcrecomp;
       `scripts/smoke.sh` checks the program starts; the launchers are built.
-      macOS and Windows must pass; Linux runs but may fail until brief 04.
+      macOS, Windows and Linux (x86-64 and arm64) must pass.
 - [ ] CI, left: nothing in it plays the game (it has none). Tests that need
       no game would add to it: xBR on a made-up picture, the settings file,
       win32hle's selftests.
