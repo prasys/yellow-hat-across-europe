@@ -47,7 +47,7 @@ static uint32_t mix(uint32_t a, uint32_t b, unsigned w) {
  * pixel, n2 the quarter beside it towards G, n1 the one towards C. The other
  * three corners are this one with the neighbourhood turned. */
 static void corner(uint32_t *n1, uint32_t *n2, uint32_t *n3,
-                   int E, int I, int H, int F, int G, int C, int D, int B, int G5, int C4, int H5, int F4, int I5, int I4) {
+                   int E, int I, int H, int F, int G, int C, int D, int B, int H5, int F4, int I5, int I4) {
     if (s_px[E] == s_px[H] || s_px[E] == s_px[F]) return;
     int along = df(E, C) + df(E, G) + df(I, H5) + df(I, F4) + 4 * df(H, F);     /* small: an edge runs H-F, cutting the corner off */
     int across = df(H, D) + df(H, I5) + df(F, I4) + df(F, B) + 4 * df(E, I);    /* small: E and I belong together */
@@ -131,10 +131,10 @@ static void *band_main(void *arg) {
              * show: skipping those saves a third of the time, and leaves the
              * brush texture of a wash as it was. */
             if (!same(E, B) || !same(E, D) || !same(E, F) || !same(E, H)) {
-                corner(&e[1], &e[2], &e[3], E, I, H, F, G, C, D, B, G5, C4, H5, F4, I5, I4);
-                corner(&e[0], &e[3], &e[1], E, C, F, B, I, A, H, D, I4, A1, F4, B1, C4, C1);
-                corner(&e[2], &e[1], &e[0], E, A, B, D, C, G, F, H, C1, G0, B1, D0, A1, A0);
-                corner(&e[3], &e[0], &e[2], E, G, D, H, A, I, B, F, A0, I5, D0, H5, G0, G5);
+                corner(&e[1], &e[2], &e[3], E, I, H, F, G, C, D, B, H5, F4, I5, I4);
+                corner(&e[0], &e[3], &e[1], E, C, F, B, I, A, H, D, F4, B1, C4, C1);
+                corner(&e[2], &e[1], &e[0], E, A, B, D, C, G, F, H, B1, D0, A1, A0);
+                corner(&e[3], &e[0], &e[2], E, G, D, H, A, I, B, F, D0, H5, G0, G5);
             }
             top[2 * x] = e[0], top[2 * x + 1] = e[1], bottom[2 * x] = e[2], bottom[2 * x + 1] = e[3];
         }

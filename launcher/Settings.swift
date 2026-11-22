@@ -30,11 +30,24 @@ enum Paths {
         return FileManager.default.fileExists(atPath: root.appendingPathComponent("Makefile").path) ? root : nil
     }
 
-    /// The game engine: beside the launcher inside the app, else a development build.
+    /// A release's kit (scripts/package/macos.sh, kit/madeline_kit.py): what the
+    /// app carries instead of the engine, which is the game's code and is built
+    /// on the player's Mac. nil in an app built from a checkout (make instead).
+    static let kit: URL? = {
+        var candidates: [URL] = []
+        if let over = ProcessInfo.processInfo.environment["MADELINE_KIT"], !over.isEmpty { candidates.append(URL(fileURLWithPath: over)) }
+        if let resources = Bundle.main.resourceURL { candidates.append(resources.appendingPathComponent("kit")) }
+        return candidates.first { FileManager.default.fileExists(atPath: $0.appendingPathComponent("kit.json").path) }
+    }()
+    /// Where a release builds the engine: the data folder, outside the app, which stays as it was signed.
+    static let engineDir = support.appendingPathComponent("engine")
+
+    /// The game engine: a release's in the data folder; else beside the launcher inside the app, else a development build.
     static var engine: URL? {
         var candidates: [URL] = []
         if let over = ProcessInfo.processInfo.environment["MADELINE_ENGINE"] { candidates.append(URL(fileURLWithPath: over)) }
-        if let exe = Bundle.main.executableURL { candidates.append(exe.deletingLastPathComponent().appendingPathComponent("madeline")) }
+        if kit != nil { candidates.append(engineDir.appendingPathComponent("madeline")) }
+        else if let exe = Bundle.main.executableURL { candidates.append(exe.deletingLastPathComponent().appendingPathComponent("madeline")) }
         candidates.append(URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("build/madeline"))
         return candidates.first { FileManager.default.isExecutableFile(atPath: $0.path) }
     }
@@ -202,6 +215,25 @@ final class LauncherModel: ObservableObject {
         return names.contains { $0.uppercased() == "MADEURO.EXE" }
     }
 
+    /// Run the kit's tool with the kit's own Python (-B: nothing is written
+    /// inside the app), its output into `log`. The exit status; -1: it did not start.
+    nonisolated static func runKit(_ kit: URL, _ args: [String], log: URL? = nil) -> Int32 {
+        let tool = Process()
+        tool.executableURL = kit.appendingPathComponent("python/bin/python3")
+        tool.arguments = ["-I", "-B", kit.appendingPathComponent("madeline_kit.py").path] + args
+        var out: FileHandle?
+        if let log {
+            try? FileManager.default.createDirectory(at: log.deletingLastPathComponent(), withIntermediateDirectories: true)
+            FileManager.default.createFile(atPath: log.path, contents: nil)
+            out = try? FileHandle(forWritingTo: log)
+        }
+        tool.standardOutput = out ?? FileHandle.nullDevice
+        tool.standardError = out ?? FileHandle.nullDevice
+        guard (try? tool.run()) != nil else { return -1 }
+        tool.waitUntilExit()
+        return tool.terminationStatus
+    }
+
     func useFolder(_ url: URL) {
         if LauncherModel.isDisc(url.path) {
             discPath = url.path
@@ -212,13 +244,22 @@ final class LauncherModel: ObservableObject {
         }
     }
 
-    /// Unpack the player's own disc image with the system's bsdtar.
+    /// Unpack the player's own disc image: with the kit in a release (it reads
+    /// the .zip the image is downloaded in, too), else the system's bsdtar.
     func useImage(_ url: URL) {
         busy = true
         status = "Unpacking \(url.lastPathComponent)…"
         let dest = Paths.disc
+        let kit = Paths.kit
         Task.detached {
             let result: String? = {
+                if let kit {
+                    switch LauncherModel.runKit(kit, ["extract", "--replace", url.path, dest.path]) {
+                    case 0: return nil
+                    case 65: return "That image is not the game's disc: there is no MADEURO.EXE on it."
+                    default: return "Could not unpack that disc image. Is it a .iso, or a .zip with one inside?"
+                    }
+                }
                 do {
                     try? FileManager.default.removeItem(at: dest)
                     try FileManager.default.createDirectory(at: dest, withIntermediateDirectories: true)
@@ -254,9 +295,22 @@ final class LauncherModel: ObservableObject {
 
     // MARK: the engine
 
-    /// Ask the engine whether it was built for this disc (`madeline --check`: 0 yes, 3 no).
+    /// Ask the engine whether it was built for this disc (`madeline --check`: 0 yes, 3 no);
+    /// in a release, the kit, which also knows whether this version of the app built it.
     func checkEngine(thenBuild: Bool = false) {
         guard discIsValid else { engineMatches = nil; return }
+        if let kit = Paths.kit {
+            let disc = discPath
+            Task.detached {
+                let ok = LauncherModel.runKit(kit, ["check", disc, Paths.engineDir.path]) == 0
+                await MainActor.run {
+                    guard self.discPath == disc else { return }
+                    self.engineMatches = ok
+                    if !ok && thenBuild { self.buildEngine() }
+                }
+            }
+            return
+        }
         guard let engine = Paths.engine else {
             engineMatches = false
             if thenBuild { buildEngine() }
@@ -278,12 +332,24 @@ final class LauncherModel: ObservableObject {
         }
     }
 
-    var canBuild: Bool { Paths.sourceRoot != nil && discIsValid && !busy && !building && !playing }
+    var canBuild: Bool { (Paths.sourceRoot != nil || Paths.kit != nil) && discIsValid && !busy && !building && !playing }
 
     /// Recompile the game from this disc: `make engine-into-app CD=<disc>` in the
     /// source checkout lifts MADEURO.EXE to C, compiles it with the host, and
-    /// puts the new engine in this app. About fifteen seconds.
+    /// puts the new engine in this app. About fifteen seconds. A release has the
+    /// kit do the same into the data folder.
     func buildEngine() {
+        if let kit = Paths.kit {
+            building = true
+            status = "Recompiling the game from your disc… (one to three minutes the first time)"
+            let disc = discPath
+            let log = Paths.support.appendingPathComponent("engine-build.log")
+            Task.detached {
+                let ok = LauncherModel.runKit(kit, ["build", disc, Paths.engineDir.path], log: log) == 0
+                await MainActor.run { self.built(ok, log: log) }
+            }
+            return
+        }
         guard let root = Paths.sourceRoot else {
             status = "This disc needs its own engine, and this app does not know where its source is. Run: make app CD=<disc folder>"
             return
@@ -307,16 +373,18 @@ final class LauncherModel: ObservableObject {
             let ran = (try? make.run()) != nil
             if ran { make.waitUntilExit() }
             let ok = ran && make.terminationStatus == 0
-            await MainActor.run {
-                self.building = false
-                if ok {
-                    self.status = "Engine built for this disc."
-                    self.checkEngine()
-                } else {
-                    self.engineMatches = false
-                    self.status = "The build failed. See \((log.path as NSString).abbreviatingWithTildeInPath)"
-                }
-            }
+            await MainActor.run { self.built(ok, log: log) }
+        }
+    }
+
+    private func built(_ ok: Bool, log: URL) {
+        building = false
+        if ok {
+            status = "Engine built for this disc."
+            checkEngine()
+        } else {
+            engineMatches = false
+            status = "The build failed. See \((log.path as NSString).abbreviatingWithTildeInPath)"
         }
     }
 

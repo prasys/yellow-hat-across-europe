@@ -1,0 +1,150 @@
+# The installable builds: an AppImage for Linux (x86-64 and arm64), a zip for
+# Windows, a dmg for macOS (Apple silicon). None holds any of the game: each
+# carries a launcher and the kit (kit/madeline_kit.py) that unpacks the
+# player's own disc image, lifts MADEURO.EXE and builds the engine on their
+# machine. scripts/package/*.sh make them; each is then proven on its own
+# system by the kit's selftest, which builds an engine from an empty lift with
+# the release's own Python, zig and host, and starts it.
+#
+# A tag v* makes a draft GitHub release with the four files: a person reads
+# it over and publishes it. A pull request that touches what goes into them,
+# or a run by hand (workflow_dispatch), builds and checks them and leaves
+# the files as the run's artifacts only.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+    paths:
+      - kit/**
+      - scripts/package/**
+      - launcher/**
+      - src/**
+      - Makefile
+      - .github/workflows/release.yml
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0          # git describe names the kit's version
+      - uses: actions/cache@v4
+        with:
+          path: build/package-cache
+          key: package-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/package/common.sh') }}
+      - name: Build tools, SDL, FluidSynth, GTK 4
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libsdl2-dev libsdl2-ttf-dev libfluidsynth-dev libgtk-4-dev \
+            python3-pip curl xz-utils unzip file librsvg2-common
+      - name: AppImage
+        run: scripts/package/linux.sh dist
+      - name: Its kit builds and starts an engine
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: 1
+        run: dist/*.AppImage --kit selftest "$RUNNER_TEMP/engine"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ runner.arch }}
+          path: dist/*.AppImage
+          if-no-files-found: error
+
+  # Cross-compiled on Linux by zig: no Windows toolchain is needed to make it.
+  windows-package:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+      - uses: actions/cache@v4
+        with:
+          path: build/package-cache
+          key: package-windows-${{ hashFiles('scripts/package/common.sh') }}
+      - name: Tools
+        run: sudo apt-get update && sudo apt-get install -y python3-pip curl xz-utils unzip
+      - name: Zip
+        run: scripts/package/windows.sh dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: dist/*.zip
+          if-no-files-found: error
+
+  windows-test:
+    needs: windows-package
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-x64
+      - name: Its kit builds and starts an engine
+        shell: pwsh
+        run: |
+          Expand-Archive -Path Yellow_Hat_Across_Europe-windows-x86_64.zip -DestinationPath app
+          $kit = "app\Yellow Hat Across Europe\kit"
+          & "$kit\python\python.exe" -I -B "$kit\madeline_kit.py" selftest "$env:RUNNER_TEMP\engine"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+      - uses: actions/cache@v4
+        with:
+          path: build/package-cache
+          key: package-macos-${{ runner.arch }}-${{ hashFiles('scripts/package/common.sh') }}
+      - name: dmg
+        run: scripts/package/macos.sh dist
+      - name: Its kit builds and starts an engine
+        run: |
+          kit="build/mac-release/The Little Girl in the Yellow Hat Across Europe.app/Contents/Resources/kit"
+          "$kit/python/bin/python3" -I -B "$kit/madeline_kit.py" selftest "$RUNNER_TEMP/engine"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ runner.arch }}
+          path: dist/*.dmg
+          if-no-files-found: error
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [linux, windows-test, macos]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > notes.md <<'EOF'
+          Point the app at your own disc image of Madeline: European Adventures (the .iso, or the .zip it came in). It unpacks it, translates the game's program to native code on your computer (a minute or two, once), and plays. Nothing of the game is in these files.
+
+          - **Linux** (x86-64 or aarch64, glibc 2.39 or newer: Ubuntu 24.04, Fedora 40 and later): the `.AppImage`. Make it executable and open it.
+          - **Windows 10/11** (x64): unzip, open `Yellow Hat Across Europe.exe`. Windows may say the publisher is unknown: More info, Run anyway.
+          - **macOS 13+** (Apple silicon): open the `.dmg`, drag the app to Applications. The app is not signed by Apple: the first time, System Settings, Privacy & Security, Open Anyway.
+          EOF
+          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --draft --title "$GITHUB_REF_NAME" --notes-file notes.md

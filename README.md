@@ -15,8 +15,8 @@ modern hardware.
 The game's own program (`MADEURO.EXE`, a 148 KB Win32s/WinG executable) is
 statically recompiled to C with [pcrecomp](https://github.com/sp00nznet/pcrecomp)
 and linked against a small host that plays the part of Windows 95: a 640x480
-256-colour screen, WinG, waveOut sound and MIDI music. You make that build
-yourself, from your own disc.
+256-colour screen, WinG, waveOut sound and MIDI music. You can download a
+ready-made build, or make that build yourself from your own disc.
 
 ## Where to get the game
 
@@ -41,17 +41,63 @@ The game has been out of print for decades. Any one of these will do:
 Once built, the app is for your own machine only. It contains code made from
 your copy of the game, so please do not pass it on.
 
+## Downloads
+
+Ready-made builds are on the
+[releases page](https://github.com/prasys/yellow-hat-across-europe/releases).
+Start with v01.
+
+- **Windows 10/11, 64-bit:** `Yellow_Hat_Across_Europe-windows-x86_64.zip`.
+  Unzip it, then run `Yellow Hat Across Europe.exe`. Windows will say the
+  publisher is unknown, because the build is not signed: choose More info, then
+  Run anyway.
+- **macOS 13 or later, Apple silicon:**
+  `Yellow_Hat_Across_Europe-macos-arm64.dmg`. Open it and drag the app to
+  Applications. Apple has not signed it, so the first time: System Settings,
+  then Privacy & Security, then Open Anyway. There is no Intel Mac build yet.
+- **Linux, x86-64 or aarch64:** `Yellow_Hat_Across_Europe-x86_64.AppImage`, or
+  the `aarch64` one for ARM. It needs glibc 2.39 or newer, which means Ubuntu
+  24.04, Fedora 40 and later. Make it executable, then open it.
+
+### Your first run
+
+None of these files holds any of the game. Open the app and choose your disc
+image, either the `.iso` or the `.zip` it was downloaded in. The app unpacks it
+and translates the game's program to native code on your own computer, which
+takes a minute or two the first time for each disc. After that Play is enabled.
+Nothing else needs installing: the app carries its own Python and the zig C
+compiler, and the translated engine goes in the data folder (`engine/` beside
+the saves), not into the app.
+
+The engine is built from your disc, so it is for your own machine. Do not pass
+the data folder on.
+
+### What has been tested
+
+Linux was run end to end with a real disc: the AppImage, built in an Ubuntu
+24.04 container as CI builds it, was opened on CachyOS, pointed at a downloaded
+`.zip`, unpacked the disc, built the engine in under a minute and reported it
+ready. That engine reaches the main menu headless.
+
+Windows and macOS are checked by CI only, where the selftest builds an engine
+from an empty lift and starts it. Neither has been pointed at a real disc yet.
+
+If you would rather build it from source, the steps below do that.
+
 ## What you need
 
-- A copy of the game, as above.
+To download a release, you need a copy of the game, as above, and a computer
+with one of the systems listed in Downloads.
+
+To build it from source, you also need:
+
 - A Mac on macOS 13 or later (Apple silicon or Intel), a Windows 10/11 PC
   (64-bit), or a Linux PC (x86-64).
 - About 700 MB free for the unpacked disc, plus room for the build.
 - A terminal. On the Mac that is Terminal; on Windows it is the MSYS2 shell;
-  on Linux, any terminal.
-  Copy the commands below one at a time.
+  on Linux, any terminal. Copy the commands below one at a time.
 
-## Install on a Mac
+## Build it on a Mac
 
 **1. Install the libraries.** Homebrew does it in one line. `uv` is optional:
 without it the lift makes its own `python3 -m venv`.
@@ -94,7 +140,7 @@ make launch                            # the app: settings and a Play button
 `make launch` builds `build/The Little Girl in the Yellow Hat Across Europe.app`
 and opens it. `make run` starts the game directly instead.
 
-## Install on Windows 10/11 (64-bit)
+## Build it on Windows 10/11 (64-bit)
 
 The same program builds on Windows with [MSYS2](https://www.msys2.org/). Install
 it from that page, then open **MSYS2 UCRT64** from the Start menu. Every command
@@ -146,7 +192,7 @@ run from the launcher is in `last-run.log` there. As on the Mac, `build/app`
 contains code made from your copy of the game: do not pass it on.
 ([brief 05](docs/briefs/05-windows-build.md) has what is left.)
 
-## Install on Linux (x86-64)
+## Build it on Linux (x86-64)
 
 **1. Install the build tools and libraries.** FluidSynth and a SoundFont play
 the music; GTK 4 draws the launcher.
@@ -360,6 +406,15 @@ drive the pointer with a pretend pad, sign in with it and with taps on the
 keyboard drawn over the book, and reach the options screen. No real
 controller or touch screen has been tried yet, on any system.
 
+The releases (2026-11-22): the Linux AppImage, built in an Ubuntu 24.04
+container exactly as CI builds it, was run on CachyOS: pointed at the
+downloaded `.zip`, its launcher unpacked the disc, built the engine with the
+bundled kit in under a minute and showed it ready, and that engine boots to the
+main menu headless (`tests/game.sh`). The Windows zip is cross-built on Linux
+and the macOS dmg on CI's Mac; on those two the only check is the kit's
+selftest (an engine from an empty lift, built and started) in `release.yml`,
+which has not run yet. Neither has been pointed at a real disc.
+
 Known gaps: only the first scene and the activities' first screens have been played by the
 tests. [docs/ROADMAP.md](docs/ROADMAP.md) lists everything still to build.
 
@@ -406,6 +461,16 @@ your disc ──extract──> game/cd/MADEURO.EXE ──pcrecomp──> build/g
 [AGENTS.md](AGENTS.md) is the guide for anyone (or any agent) changing the code.
 
 ## Testing
+
+```sh
+make lint      # warnings as errors in src/ and the launcher, clang-tidy, shellcheck, ruff
+make test      # the kit's tests, the engine's start and its agreement with the kit;
+               # with the game in game/cd, also a boot to the main menu
+```
+
+Both run in CI (`.github/workflows/build.yml`) on every system, without the
+game. Lint tools that are not installed are skipped locally (`LINT_STRICT=1`
+makes that an error, as in CI).
 
 `scripts/playtest.sh` runs the game headless with its clock sped up, feeds it
 clicks and keys, and writes screenshots plus a contact sheet:

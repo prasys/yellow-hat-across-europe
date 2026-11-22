@@ -226,7 +226,7 @@ static uint32_t stock_shim_va(const char *name) {
  * The lookup has to be made for every call (it is what selects the shim). */
 static void stock_shim_call(uint32_t va) {
     recomp_func_t fn = va ? recomp_lookup_import(va) : NULL;
-    if (!fn) hle_fatal("no stock shim to pass a call on to");
+    if (!fn) { hle_fatal("no stock shim to pass a call on to"); return; }   /* hle_fatal aborts, but is not declared noreturn */
     fn();
 }
 

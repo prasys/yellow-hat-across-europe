@@ -5,3 +5,6 @@
 *.iso
 *.o
 .DS_Store
+*.obj
+__pycache__/
+.ruff_cache/

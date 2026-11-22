@@ -40,7 +40,7 @@ static void shot(const char *file) {
     int32_t nh = -h; memcpy(hd + 22, &nh, 4);
     hd[26] = 1, hd[28] = 32;
     fwrite(hd, 1, 54, f);
-    fwrite(px, 4, (size_t)(w * h), f);
+    fwrite(px, 4, (size_t)w * (size_t)h, f);
     fclose(f);
     fprintf(stderr, "[script] shot %s\n", file);
 }

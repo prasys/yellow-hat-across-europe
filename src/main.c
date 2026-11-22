@@ -26,7 +26,12 @@
 #include "win32hle.h"
 #include "host.h"
 #include "madeline.h"
-#include "lift_id.h"      /* generated: which MADEURO.EXE this program's code was lifted from */
+
+/* Which MADEURO.EXE this program's code was lifted from: its POSIX cksum and
+ * size, defined by the generated lift_id.c. They are linked in rather than
+ * compiled into this file so that a release can carry this file already built
+ * and link it to a lift made on the player's machine (kit/madeline_kit.py). */
+extern const uint32_t madeline_lift_cksum, madeline_lift_size;
 
 
 /* madeline.ini, in the save folder: "key=value" lines; '#' starts a comment.
@@ -155,9 +160,9 @@ int main(int argc, char **argv) {
          * it reads that file again for its data. Another build of the game needs
          * its own lift: rebuild with `make CD=<that disc>`. */
         uint32_t crc, size;
-        if (!file_cksum(exe, &crc, &size) || crc != LIFT_CKSUM || size != LIFT_SIZE) {
+        if (!file_cksum(exe, &crc, &size) || crc != madeline_lift_cksum || size != madeline_lift_size) {
             fprintf(stderr, "madeline: this program was built from a different MADEURO.EXE than the one in '%s'.\n"
-                            "Rebuild it for this disc: make CD='%s'\n", root, root);
+                            "Rebuild it for this disc (the launcher does it), or: make CD='%s'\n", root, root);
             return 3;
         }
         if (check_only) return 0;
@@ -172,7 +177,8 @@ int main(int argc, char **argv) {
     ini_get("bars", bars, sizeof bars);
     madeline_skip_intro = skip_intro;
     madeline_headless = headless;
-    madeline_remember_name = ini_flag("remember_name", 1) && !(getenv("MADELINE_NO_NAME") && *getenv("MADELINE_NO_NAME"));
+    const char *no_name = getenv("MADELINE_NO_NAME");
+    madeline_remember_name = ini_flag("remember_name", 1) && !(no_name && *no_name);
     snprintf(madeline_save_dir, sizeof madeline_save_dir, "%s/CWONDERS/MADEURO", save);
     if (getenv("MADELINE_SOUNDFONT")) snprintf(madeline_soundfont, sizeof madeline_soundfont, "%s", getenv("MADELINE_SOUNDFONT"));
     else ini_get("soundfont", madeline_soundfont, sizeof madeline_soundfont);
