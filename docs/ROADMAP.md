@@ -273,11 +273,11 @@ Order: Linux, then Windows, then tablets. Full checklists are in the briefs; the
       path cannot be given to `make` (a user name with a space puts one in
       `%APPDATA%`); the window is laid out for the main display's scaling
       only.
-- [x] A version to hand out (2026-11-22): the release zip, cross-built on
-      Linux by zig against the official SDL2 builds; it lifts and compiles
-      with its own kit, no MSYS2. On Windows it is checked only by its
-      selftest in `release.yml` (not yet run: nothing is pushed), and it has
-      not been pointed at a real disc there. Left: win32hle's
+- [x] A version to hand out (2026-11-22): v01 is published. The Windows zip
+      is cross-built on Linux by zig against the official SDL2 builds; it
+      lifts and compiles with its own kit, no MSYS2. Its selftest passed on a
+      real Windows runner in `release.yml`, and it has not been played with a
+      real disc there. Left: win32hle's
       selftests on Windows; whether Defender slows the first build.
 - [ ] Paths with non-ASCII characters (a user folder named in another
       script): the compatibility layer uses the ANSI file calls.
