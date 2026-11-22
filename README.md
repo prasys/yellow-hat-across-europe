@@ -21,7 +21,55 @@ and linked against a small host that plays the part of Windows 95: a 640x480
 256-colour screen, WinG, waveOut sound and MIDI music. You can download a
 ready-made build, or make that build yourself from your own disc.
 
-## Where to get the game
+## Features
+
+What this port adds over the 1996 game. The Playing section, the options table
+and Picture modes below have the detail.
+
+**Any screen size**
+
+- The 640x480 picture scales to any window, or to full screen with F11.
+- Five scaling modes on F12 (`scale=`): `smooth` (the default), `sharp`, `crt`
+  with the scan lines of an old monitor, `nearest` for the original blocky
+  pixels, and `integer` for whole multiples only.
+- In full screen, the sides of a wide screen fill with a soft blur of the
+  picture, or stay black (`bars=`).
+
+**A cleaner picture**
+
+- Smoothing (F10, on by default) melts the 256 colour dithering into flat paint
+  and keeps the ink lines.
+- Optional xBR (upscaling!) (F8, off by default) doubles the picture and redraws slanted
+  edges without stair-steps.
+
+
+**Printing**
+
+- The game's Print button, on the painting screen, makes a PDF of the picture
+  in `prints/` beside the saves.
+- On a Mac the system print dialog then opens over it: pick a printer, or use
+  its PDF menu to save the page somewhere else. On Windows and Linux the PDF
+  opens in your viewer, to print from there.
+
+**Controllers and touch**
+
+- Any pad SDL knows drives the pointer: Xbox-style, PlayStation, Switch, the
+  Steam Deck's. The buttons are listed under Playing, and Back is full screen.
+- With a controller or a touch screen, a keyboard is drawn over the sign-in
+  book, so a name can be typed without a keyboard.
+
+**Smaller conveniences**
+
+- Skip the opening movies (`skip_intro`).
+- The last saved name is typed into the sign-in book for you (`remember_name`).
+- F9 saves a screenshot into `screenshots/`, beside the saves.
+- Closing the window asks before quitting unsaved, as Alt+F4 did in the
+  original.
+
+If you would rather build it from source, the steps below do that.
+
+
+## Where to get the game & How to get started 
 
 **You need your own copy of the game.** This repository contains no game code,
 art or sound, and neither does the program it builds: the lift is made on your
@@ -107,72 +155,6 @@ the saves), not inside the app.
 The engine is built from your disc, so it is for your own machine. Do not pass
 the data folder on.
 
-### What has been tested
-
-Linux was run end to end with a real disc: the AppImage, built in an Ubuntu
-24.04 container as CI builds it, was opened on CachyOS, pointed at a downloaded
-`.zip`, unpacked the disc, built the engine in under a minute and reported it
-ready. That engine reaches the main menu headless.
-
-Windows and macOS were each built, and their engine selftested, on a real
-Windows and a real Mac runner in CI. Neither has been played with a real disc
-yet.
-
-## Features
-
-What this port adds over the 1996 game. The Playing section, the options table
-and Picture modes below have the detail.
-
-**Any screen size**
-
-- The 640x480 picture scales to any window, or to full screen with F11.
-- Five scaling modes on F12 (`scale=`): `smooth` (the default), `sharp`, `crt`
-  with the scan lines of an old monitor, `nearest` for the original blocky
-  pixels, and `integer` for whole multiples only.
-- In full screen, the sides of a wide screen fill with a soft blur of the
-  picture, or stay black (`bars=`).
-
-**A cleaner picture**
-
-- Smoothing (F10, on by default) melts the 256-colour dithering into flat paint
-  and keeps the ink lines.
-- Optional xBR (F8, off by default) doubles the picture and redraws slanted
-  edges without stair-steps.
-- Both choices are remembered between runs.
-
-**Printing**
-
-- The game's Print button, on the painting screen, makes a PDF of the picture
-  in `prints/` beside the saves.
-- On a Mac the system print dialog then opens over it: pick a printer, or use
-  its PDF menu to save the page somewhere else. On Windows and Linux the PDF
-  opens in your viewer, to print from there.
-- New, and lightly tested: a scripted play-through has produced a PDF that
-  matches the screen, and the Mac dialog has been seen to open, but nobody has
-  printed from inside the game yet, and opening the PDF on Windows and Linux
-  has not been run.
-
-**Controllers and touch**
-
-- Any pad SDL knows drives the pointer: Xbox-style, PlayStation, Switch, the
-  Steam Deck's. The buttons are listed under Playing, and Back is full screen.
-- With a controller or a touch screen, a keyboard is drawn over the sign-in
-  book, so a name can be typed without a keyboard.
-- `gamepad=0` turns controllers off.
-- Lightly tested: these have run on simulated input only, so no real pad or
-  touch screen has been near them yet.
-
-**Smaller conveniences**
-
-- Skip the opening movies (`skip_intro`).
-- The last saved name is typed into the sign-in book for you (`remember_name`).
-- F9 saves a screenshot into `screenshots/`, beside the saves.
-- Closing the window asks before quitting unsaved, as Alt+F4 did in the
-  original.
-- A launcher sets all of the above, lists your saved games and has one Play
-  button.
-
-If you would rather build it from source, the steps below do that.
 
 ## What you need
 
