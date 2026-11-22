@@ -182,7 +182,7 @@ Ordered by how much each matters to someone actually playing.
 
 ## 4. Other platforms
 
-Order: Linux, then Windows. Full checklists are in the briefs; the summary:
+Order: Linux, then Windows, then tablets. Full checklists are in the briefs; the summary:
 
 **Linux** ([brief 04](briefs/04-linux-build.md)) - expected to be close:
 
@@ -227,6 +227,29 @@ Order: Linux, then Windows. Full checklists are in the briefs; the summary:
       script): the compatibility layer uses the ANSI file calls.
 
 **Intel Macs**: should work unchanged; untested.
+
+**iPad, iPhone and Android tablets** (the goal: play it on a tablet, asked for
+2026-11-22):
+
+- [ ] **Real touch input.** `src/pad.c` already tells touch from a mouse and
+      the script driver has the `touch X Y` verb; no real touch screen has run
+      it. Try a Windows touch screen first, then an iPad and an Android tablet.
+- [ ] **The on-screen keyboard on a tablet**: keys big enough for a finger,
+      the hide and move keys within reach, and it opens wherever the game asks
+      for a name or a word, not only at the sign-in book.
+- [ ] **Decide how the lift gets onto a device.** The engine has to be built
+      from the player's own disc, and iOS will not compile on the device. So
+      either build on a Mac and copy the engine into the app (sideloading), or
+      take an Android route where the build happens on a computer. Shipping the
+      lifted code inside an app store build is ruled out by the hard rule: it
+      is the game's code.
+- [ ] **Android first.** SDL2 is there, the host in `src/` needs no Xcode, and
+      a tablet build can be made on a Linux or Mac machine. An iPad build needs
+      the launcher redone in UIKit or SwiftUI and a device signing setup.
+- [ ] **Layout and scaling** on a tablet screen: `integer` or `sharp` scaling
+      to a 4:3 area in landscape, and where the safe-area bars go.
+- [ ] **A tablet with a controller.** The pad already works, so this is the
+      first way to play on a tablet, before touch is proven.
 
 ## 5. Housekeeping
 
