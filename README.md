@@ -3,7 +3,10 @@
 # The Little Girl in the Yellow Hat Across Europe
 
 **Madeline: European Adventures** (Creative Wonders, 1996), running as a native
-app on macOS and Windows. No Windows 95, no Wine, no emulator.
+app on macOS, Windows and Linux. No Windows 95, no Wine, no emulator.
+
+**[Download the latest release](https://github.com/prasys/yellow-hat-across-europe/releases/latest)**
+for Windows, macOS or Linux, then point it at your own copy of the game.
 
 ## Why I made this
 
@@ -28,8 +31,8 @@ disc while it runs.
 The game has been out of print for decades. Any one of these will do:
 
 - **A disc you already own.** Make an ISO of it (on a Mac, Disk Utility, then
-  File > New Image > Image from the disc), and give that file to `make extract`
-  below. This is the cleanest route.
+  File > New Image > Image from the disc). The app takes that file as it is,
+  and so does `make extract` below. This is the cleanest route.
 - **A second-hand disc.** Copies turn up on eBay and in charity shops. Same
   steps once it arrives.
 - **An abandonware copy.** An image is listed at
@@ -43,31 +46,63 @@ your copy of the game, so please do not pass it on.
 
 ## Downloads
 
-Ready-made builds are on the
-[releases page](https://github.com/prasys/yellow-hat-across-europe/releases).
-Start with v01.
+The easy way to play: download a release from the
+[releases page](https://github.com/prasys/yellow-hat-across-europe/releases/latest)
+and pick the file for your computer. The current release is v01.
 
-- **Windows 10/11, 64-bit:** `Yellow_Hat_Across_Europe-windows-x86_64.zip`.
-  Unzip it, then run `Yellow Hat Across Europe.exe`. Windows will say the
-  publisher is unknown, because the build is not signed: choose More info, then
-  Run anyway.
-- **macOS 13 or later, Apple silicon:**
-  `Yellow_Hat_Across_Europe-macos-arm64.dmg`. Open it and drag the app to
-  Applications. Apple has not signed it, so the first time: System Settings,
-  then Privacy & Security, then Open Anyway. There is no Intel Mac build yet.
-- **Linux, x86-64 or aarch64:** `Yellow_Hat_Across_Europe-x86_64.AppImage`, or
-  the `aarch64` one for ARM. It needs glibc 2.39 or newer, which means Ubuntu
-  24.04, Fedora 40 and later. Make it executable, then open it.
+### On Windows 10/11 (64-bit)
 
-### Your first run
+Download `Yellow_Hat_Across_Europe-windows-x86_64.zip` (92 MB), then extract
+all of it. Run `Yellow Hat Across Europe.exe` from the extracted folder, not
+from inside the zip.
 
-None of these files holds any of the game. Open the app and choose your disc
-image, either the `.iso` or the `.zip` it was downloaded in. The app unpacks it
-and translates the game's program to native code on your own computer, which
-takes a minute or two the first time for each disc. After that Play is enabled.
+Windows will say the publisher is unknown, because the app is not signed:
+choose More info, then Run anyway.
+
+Settings and saves are in `%APPDATA%\MadelineEuropeanAdventures`.
+
+### On a Mac (macOS 13 or later, Apple silicon)
+
+Download `Yellow_Hat_Across_Europe-macos-arm64.dmg` (117 MB). Open it and drag
+the app to Applications.
+
+Apple has not signed the app, so macOS blocks the first open. Go to System
+Settings, then Privacy & Security, scroll down, then Open Anyway.
+
+There is no Intel Mac build.
+
+Saves are in `~/Library/Application Support/MadelineEuropeanAdventures`.
+
+### On Linux (x86-64 or aarch64)
+
+Download the AppImage for your CPU:
+`Yellow_Hat_Across_Europe-x86_64.AppImage` (about 120 MB) or
+`Yellow_Hat_Across_Europe-aarch64.AppImage` (about 112 MB). It needs glibc 2.39
+or newer, which means Ubuntu 24.04, Fedora 40 and later.
+
+Make it executable, then run it:
+
+```sh
+chmod +x Yellow_Hat_Across_Europe-x86_64.AppImage
+./Yellow_Hat_Across_Europe-x86_64.AppImage
+```
+
+Your file manager does the same through "Allow executing as program".
+
+Music needs a General MIDI SoundFont installed, for example `soundfont-fluid`
+or `fluid-soundfont-gm`. Without one, the game plays silently.
+
+Saves are in `~/.local/share/madeline-european-adventures`.
+
+### Your first run, on every system
+
+None of these files holds any of the game. Open the app and choose your own
+disc image, either the `.iso` or the `.zip` it was downloaded in. The app
+unpacks it and translates the game's program on your computer, which takes a
+minute or two the first time and again after an app update. Then press Play.
 Nothing else needs installing: the app carries its own Python and the zig C
-compiler, and the translated engine goes in the data folder (`engine/` beside
-the saves), not into the app.
+compiler, and the translated engine lives in the data folder (`engine/` beside
+the saves), not inside the app.
 
 The engine is built from your disc, so it is for your own machine. Do not pass
 the data folder on.
@@ -79,8 +114,9 @@ Linux was run end to end with a real disc: the AppImage, built in an Ubuntu
 `.zip`, unpacked the disc, built the engine in under a minute and reported it
 ready. That engine reaches the main menu headless.
 
-Windows and macOS are checked by CI only, where the selftest builds an engine
-from an empty lift and starts it. Neither has been pointed at a real disc yet.
+Windows and macOS were each built, and their engine selftested, on a real
+Windows and a real Mac runner in CI. Neither has been played with a real disc
+yet.
 
 If you would rather build it from source, the steps below do that.
 
@@ -406,14 +442,14 @@ drive the pointer with a pretend pad, sign in with it and with taps on the
 keyboard drawn over the book, and reach the options screen. No real
 controller or touch screen has been tried yet, on any system.
 
-The releases (2026-11-22): the Linux AppImage, built in an Ubuntu 24.04
-container exactly as CI builds it, was run on CachyOS: pointed at the
-downloaded `.zip`, its launcher unpacked the disc, built the engine with the
-bundled kit in under a minute and showed it ready, and that engine boots to the
-main menu headless (`tests/game.sh`). The Windows zip is cross-built on Linux
-and the macOS dmg on CI's Mac; on those two the only check is the kit's
-selftest (an engine from an empty lift, built and started) in `release.yml`,
-which has not run yet. Neither has been pointed at a real disc.
+The releases (2026-11-22): v01 is out, with the Windows zip, the macOS dmg and
+the two Linux AppImages. The Linux AppImage, built in an Ubuntu 24.04 container
+exactly as CI builds it, was run on CachyOS: pointed at the downloaded `.zip`,
+its launcher unpacked the disc, built the engine with the bundled kit in under a
+minute and showed it ready, and that engine boots to the main menu headless
+(`tests/game.sh`). The Windows zip is cross-built on Linux and selftested on a
+real Windows runner; the macOS dmg is built and selftested on a Mac runner.
+Neither of those two has been played with a real disc.
 
 Known gaps: only the first scene and the activities' first screens have been played by the
 tests. [docs/ROADMAP.md](docs/ROADMAP.md) lists everything still to build.
