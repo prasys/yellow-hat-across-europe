@@ -66,7 +66,11 @@ cp -R "$FW/SDL2.framework" "$FW/SDL2_ttf.framework" "$KIT/host/Frameworks/"
 # names the ones the host needs (otool -L); for each, a stub is written that
 # lists only the symbols and Objective-C classes the host takes from it.
 SDK=$(xcrun --show-sdk-path)
-nm -u "$KIT"/host/obj/*.o | awk 'NF == 1 || $1 == "U" { print $NF }' | sort -u > "$STAGE/used"
+# On arm64 clang calls Objective-C methods through selector stubs
+# (_objc_msgSend$name) that the linker writes, and they call _objc_msgSend,
+# which no object names itself.
+nm -u "$KIT"/host/obj/*.o | awk 'NF == 1 || $1 == "U" { print $NF }
+    $NF ~ /^_objc_msgSend\$/ { print "_objc_msgSend" }' | sort -u > "$STAGE/used"
 # shellcheck disable=SC2016  # a literal $ in the symbol name
 sed -n 's/^_OBJC_CLASS_\$_//p' "$STAGE/used" | sort -u > "$STAGE/classes"
 SYSLINK=""
