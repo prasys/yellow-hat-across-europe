@@ -62,7 +62,9 @@ kit_common() {
 
     py=$(fetch "https://github.com/astral-sh/python-build-standalone/releases/download/$PY_BUILD/cpython-$PY_VERSION+$PY_BUILD-$ps-install_only_stripped.tar.gz")
     rm -rf "$kit/python" && tar -xzf "$py" -C "$kit"
-    # What the kit never runs: Tk, IDLE, the test suite, pip's installer.
+    # What the kit never runs: Tk, IDLE, the test suite, pip's installer. (Left
+    # in, _tkinter would have linuxdeploy bundle the system's Tcl and Tk.)
+    rm -f "$kit"/python/lib/python3.*/lib-dynload/_tkinter* "$kit"/python/DLLs/_tkinter.pyd "$kit"/python/DLLs/tcl*.dll "$kit"/python/DLLs/tk*.dll
     for d in "$kit"/python/tcl "$kit"/python/lib/tcl* "$kit"/python/lib/tk* "$kit"/python/lib/itcl* "$kit"/python/lib/thread* \
              "$kit"/python/Lib "$kit"/python/lib/python3.*; do
         [ -d "$d" ] || continue

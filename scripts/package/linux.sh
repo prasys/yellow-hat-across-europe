@@ -23,8 +23,11 @@ MULTIARCH=$(gcc -dumpmachine)
 cd "$ROOT"
 
 # The host (src/ and win32hle), compiled here by the system's gcc; zig links it
-# to the lift on the player's machine, for this glibc.
-make -j"$(nproc)" STUB=1
+# to the lift on the player's machine, for this glibc. On aarch64, gcc turns
+# atomics into calls to libgcc helpers (__aarch64_cas4_sync...) that zig's
+# runtime does not have: inline instructions instead.
+case $ARCH in aarch64) HOSTOPT="-O2 -mno-outline-atomics" ;; *) HOSTOPT=-O2 ;; esac
+make -j"$(nproc)" STUB=1 OPT="$HOSTOPT"
 make build/launcher-linux
 rm -rf "$APPDIR"
 mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/icons/hicolor/scalable/apps"
