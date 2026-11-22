@@ -19,7 +19,7 @@ struct LauncherApp: App {
         WindowGroup(projectTitle) {
             LauncherView()
                 .environmentObject(model)
-                .frame(width: 560)
+                .frame(width: 880)
                 .fixedSize(horizontal: true, vertical: true)
         }
         .windowResizability(.contentSize)
@@ -95,36 +95,46 @@ struct LauncherView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            Form {
-                discSection
-                Section("Starting up") {
-                    Toggle("Skip the opening movies", isOn: $model.skipIntro)
-                    Toggle("Fill in my name on the sign-in book", isOn: $model.rememberName)
-                    Toggle("Start in full screen", isOn: $model.fullscreen)
-                    Toggle("Play with a game controller", isOn: $model.gamepad)
-                    Toggle("Use the game's own mouse pointers", isOn: $model.gamePointers)
+            // Two columns, so the whole window fits on a laptop screen: what is
+            // played (the disc, the saves) on the left, how it plays on the right.
+            HStack(alignment: .top, spacing: 0) {
+                Form {
+                    discSection
+                    savesSection
                 }
-                Section {
-                    Toggle("Smooth the painting", isOn: $model.smooth)
-                    Toggle("Redraw edges at twice the size (xBR)", isOn: $model.xbr)
-                    Picker("Scaling", selection: $model.scaling) {
-                        ForEach(Scaling.allCases) { Text($0.label).tag($0) }
+                .formStyle(.grouped)
+                .scrollDisabled(true)
+                .frame(width: 440)
+                Form {
+                    Section("Starting up") {
+                        Toggle("Skip the opening movies", isOn: $model.skipIntro)
+                        Toggle("Fill in my name on the sign-in book", isOn: $model.rememberName)
+                        Toggle("Start in full screen", isOn: $model.fullscreen)
+                        Toggle("Play with a game controller", isOn: $model.gamepad)
+                        Toggle("Use the game's own mouse pointers", isOn: $model.gamePointers)
                     }
-                    Picker("Beside the picture", selection: $model.blurBars) {
-                        Text("Soft blur").tag(true)
-                        Text("Black").tag(false)
+                    Section {
+                        Toggle("Smooth the painting", isOn: $model.smooth)
+                        Toggle("Redraw edges at twice the size (xBR)", isOn: $model.xbr)
+                        Picker("Scaling", selection: $model.scaling) {
+                            ForEach(Scaling.allCases) { Text($0.label).tag($0) }
+                        }
+                        Picker("Beside the picture", selection: $model.blurBars) {
+                            Text("Soft blur").tag(true)
+                            Text("Black").tag(false)
+                        }
+                    } header: {
+                        Text("Picture")
+                    } footer: {
+                        Text("Smoothing melts the 256-colour speckle into washes of paint; xBR takes the stair-steps out of slanted lines.")
+                            .multilineTextAlignment(.leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                } header: {
-                    Text("Picture")
-                } footer: {
-                    Text("Smoothing melts the 256-colour speckle into washes of paint; xBR takes the stair-steps out of slanted lines.")
-                        .multilineTextAlignment(.leading)
-                .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                savesSection
+                .formStyle(.grouped)
+                .scrollDisabled(true)
+                .frame(width: 440)
             }
-            .formStyle(.grouped)
-            .scrollDisabled(true)
             footer
         }
         .background(Color(nsColor: .windowBackgroundColor))

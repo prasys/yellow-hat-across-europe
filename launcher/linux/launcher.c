@@ -681,7 +681,7 @@ static GtkWidget *label_with(const char *text, const char *css, float xalign) {
 static GtkWidget *wrapping(GtkWidget *l) {
     gtk_label_set_wrap(GTK_LABEL(l), TRUE);
     gtk_label_set_wrap_mode(GTK_LABEL(l), PANGO_WRAP_WORD_CHAR);
-    gtk_label_set_max_width_chars(GTK_LABEL(l), 60);
+    gtk_label_set_max_width_chars(GTK_LABEL(l), 48);    /* about one column of the window */
     return l;
 }
 static GtkWidget *checkbox(GtkWidget *box, const char *text) {
@@ -718,11 +718,11 @@ static GtkWidget *header(void) {
 }
 
 static void build_window(GtkApplication *app) {
-    GtkWidget *win = gtk_application_window_new(app), *outer = vbox(0), *body = vbox(8), *b, *col;
+    GtkWidget *win = gtk_application_window_new(app), *outer = vbox(0), *body = hbox(32), *b, *col;
     g_win = GTK_WINDOW(win);
     gtk_window_set_title(g_win, TITLE);
     gtk_window_set_icon_name(g_win, APP_ID);
-    gtk_window_set_default_size(g_win, 640, -1);
+    gtk_window_set_default_size(g_win, 880, -1);
     gtk_window_set_resizable(g_win, FALSE);
 
     GtkCssProvider *css = gtk_css_provider_new();
@@ -736,8 +736,15 @@ static void build_window(GtkApplication *app) {
     gtk_widget_set_margin_top(body, 12); gtk_widget_set_margin_bottom(body, 12);
     gtk_box_append(GTK_BOX(outer), body);
 
+    /* Two columns, so the window is wide rather than tall and fits a small screen:
+     * the disc, its music and the saves on the left; how it starts and looks on the right. */
+    GtkWidget *left = vbox(8), *right = vbox(8);
+    gtk_box_set_homogeneous(GTK_BOX(body), TRUE);
+    gtk_box_append(GTK_BOX(body), left);
+    gtk_box_append(GTK_BOX(body), right);
+
     /* The disc, and the engine made from it. */
-    gtk_box_append(GTK_BOX(body), label_with("Game disc", "section", 0));
+    gtk_box_append(GTK_BOX(left), label_with("Game disc", "section", 0));
     b = vbox(2);
     gtk_box_append(GTK_BOX(b), g_disc_status = label_with("", NULL, 0));
     gtk_box_append(GTK_BOX(b), g_disc_path = label_with("", "hint", 0));
@@ -749,25 +756,51 @@ static void build_window(GtkApplication *app) {
     gtk_menu_button_set_label(GTK_MENU_BUTTON(g_choose), "Choose…");
     gtk_menu_button_set_menu_model(GTK_MENU_BUTTON(g_choose), G_MENU_MODEL(menu));
     g_object_unref(menu);
-    gtk_box_append(GTK_BOX(body), row_with_button(b, g_choose));
+    gtk_box_append(GTK_BOX(left), row_with_button(b, g_choose));
     b = vbox(2);
     gtk_box_append(GTK_BOX(b), g_engine_status = label_with("", NULL, 0));
     gtk_box_append(GTK_BOX(b), g_engine_hint = wrapping(label_with("The game's program is translated to native code from your disc, on this computer.", "hint", 0)));
     g_build = gtk_button_new_with_label("Build");
     g_signal_connect(g_build, "clicked", G_CALLBACK(on_build), NULL);
-    gtk_box_append(GTK_BOX(body), row_with_button(b, g_build));
+    gtk_box_append(GTK_BOX(left), row_with_button(b, g_build));
+
+    /* The music's SoundFont: Linux has no General MIDI sound bank of its own. */
+    gtk_box_append(GTK_BOX(left), label_with("Music", "section", 0));
+    g_sf_status = wrapping(label_with("", NULL, 0));
+    GtkWidget *sfb = hbox(6);
+    g_sf_reset = gtk_button_new_with_label("Use the system's");
+    g_sf_choose = gtk_button_new_with_label("SoundFont…");
+    g_signal_connect(g_sf_reset, "clicked", G_CALLBACK(system_soundfont), NULL);
+    g_signal_connect(g_sf_choose, "clicked", G_CALLBACK(choose_soundfont), NULL);
+    gtk_box_append(GTK_BOX(sfb), g_sf_reset);
+    gtk_box_append(GTK_BOX(sfb), g_sf_choose);
+    gtk_box_append(GTK_BOX(left), row_with_button(g_sf_status, sfb));
+
+    /* The saved games. */
+    GtkWidget *open = gtk_button_new_with_label("Open folder");
+    g_signal_connect(open, "clicked", G_CALLBACK(open_saves), NULL);
+    gtk_box_append(GTK_BOX(left), row_with_button(label_with("Saved games", "section", 0), open));
+    g_saves = gtk_list_box_new();
+    gtk_list_box_set_selection_mode(GTK_LIST_BOX(g_saves), GTK_SELECTION_NONE);
+    gtk_widget_add_css_class(g_saves, "saves");
+    GtkWidget *scroll = gtk_scrolled_window_new();
+    gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scroll), g_saves);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+    gtk_scrolled_window_set_has_frame(GTK_SCROLLED_WINDOW(scroll), TRUE);
+    gtk_widget_set_size_request(scroll, -1, 104);
+    gtk_widget_set_vexpand(scroll, TRUE);          /* the saves take what the right column leaves */
+    gtk_box_append(GTK_BOX(left), scroll);
+    gtk_box_append(GTK_BOX(left), wrapping(label_with("Each name signed into the book has its own game: sign in with it again and choose “old game”.", "hint", 0)));
 
     /* How it starts, and how it looks. */
-    GtkWidget *cols = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 24);
-    gtk_box_set_homogeneous(GTK_BOX(cols), TRUE);
+    gtk_box_append(GTK_BOX(right), label_with("Starting up", "section", 0));
     col = vbox(2);
-    gtk_box_append(GTK_BOX(col), label_with("Starting up", "section", 0));
     g_skip = checkbox(col, "Skip the opening movies");
     g_name = checkbox(col, "Fill in my name on the sign-in book");
     g_full = checkbox(col, "Start in full screen");
-    gtk_box_append(GTK_BOX(cols), col);
+    gtk_box_append(GTK_BOX(right), col);
+    gtk_box_append(GTK_BOX(right), label_with("Picture", "section", 0));
     col = vbox(2);
-    gtk_box_append(GTK_BOX(col), label_with("Picture", "section", 0));
     g_smooth = checkbox(col, "Smooth the painting");
     g_xbr = checkbox(col, "Redraw edges at twice the size (xBR)");
     GtkWidget *grid = gtk_grid_new();
@@ -782,36 +815,8 @@ static void build_window(GtkApplication *app) {
     gtk_grid_attach(GTK_GRID(grid), g_bars, 1, 1, 1, 1);
     gtk_widget_set_margin_top(grid, 4);
     gtk_box_append(GTK_BOX(col), grid);
-    gtk_box_append(GTK_BOX(cols), col);
-    gtk_box_append(GTK_BOX(body), cols);
-    gtk_box_append(GTK_BOX(body), wrapping(label_with("Smoothing melts the 256-colour speckle into washes of paint; xBR takes the stair-steps out of slanted lines.", "hint", 0)));
-
-    /* The music's SoundFont: Linux has no General MIDI sound bank of its own. */
-    gtk_box_append(GTK_BOX(body), label_with("Music", "section", 0));
-    g_sf_status = wrapping(label_with("", NULL, 0));
-    GtkWidget *sfb = hbox(6);
-    g_sf_reset = gtk_button_new_with_label("Use the system's");
-    g_sf_choose = gtk_button_new_with_label("SoundFont…");
-    g_signal_connect(g_sf_reset, "clicked", G_CALLBACK(system_soundfont), NULL);
-    g_signal_connect(g_sf_choose, "clicked", G_CALLBACK(choose_soundfont), NULL);
-    gtk_box_append(GTK_BOX(sfb), g_sf_reset);
-    gtk_box_append(GTK_BOX(sfb), g_sf_choose);
-    gtk_box_append(GTK_BOX(body), row_with_button(g_sf_status, sfb));
-
-    /* The saved games. */
-    GtkWidget *open = gtk_button_new_with_label("Open folder");
-    g_signal_connect(open, "clicked", G_CALLBACK(open_saves), NULL);
-    gtk_box_append(GTK_BOX(body), row_with_button(label_with("Saved games", "section", 0), open));
-    g_saves = gtk_list_box_new();
-    gtk_list_box_set_selection_mode(GTK_LIST_BOX(g_saves), GTK_SELECTION_NONE);
-    gtk_widget_add_css_class(g_saves, "saves");
-    GtkWidget *scroll = gtk_scrolled_window_new();
-    gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scroll), g_saves);
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
-    gtk_scrolled_window_set_has_frame(GTK_SCROLLED_WINDOW(scroll), TRUE);
-    gtk_widget_set_size_request(scroll, -1, 104);
-    gtk_box_append(GTK_BOX(body), scroll);
-    gtk_box_append(GTK_BOX(body), wrapping(label_with("Each name signed into the book has its own game: sign in with it again and choose “old game”.", "hint", 0)));
+    gtk_box_append(GTK_BOX(right), col);
+    gtk_box_append(GTK_BOX(right), wrapping(label_with("Smoothing melts the 256-colour speckle into washes of paint; xBR takes the stair-steps out of slanted lines.", "hint", 0)));
 
     /* The footer: what is going on, and Play. */
     gtk_box_append(GTK_BOX(outer), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL));
