@@ -3,7 +3,7 @@
 # The Little Girl in the Yellow Hat Across Europe
 
 **Madeline: European Adventures** (Creative Wonders, 1996), running as a native
-app on macOS, Windows and Linux. No Windows 95, no Wine, no emulator.
+app on modern computers. No emulators, no messing around with a lot of settings.
 
 **[Download the latest release](https://github.com/prasys/yellow-hat-across-europe/releases/latest)**
 for Windows, macOS or Linux, then point it at your own copy of the game.
