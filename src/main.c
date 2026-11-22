@@ -11,7 +11,7 @@
  *
  * The same choices can be kept in madeline.ini in the save folder
  * (skip_intro, fullscreen, remember_name, smooth, upscale, scale, bars,
- * gamepad, pointer); the command
+ * gamepad, pointer, soundfont); the command
  * line wins.
  *
  * No game data is built into this program: it maps MADEURO.EXE from the CD
@@ -33,6 +33,7 @@
  * Read at start; a setting changed while playing (F10, F11, F12) is written
  * back, so the game comes up next time the way it was left. */
 static char g_ini[PATH_MAX + 80];
+char madeline_soundfont[1024];
 static int ini_get(const char *key, char *out, size_t n) {
     FILE *f = fopen(g_ini, "r");
     char line[256];
@@ -173,6 +174,8 @@ int main(int argc, char **argv) {
     madeline_headless = headless;
     madeline_remember_name = ini_flag("remember_name", 1) && !(getenv("MADELINE_NO_NAME") && *getenv("MADELINE_NO_NAME"));
     snprintf(madeline_save_dir, sizeof madeline_save_dir, "%s/CWONDERS/MADEURO", save);
+    if (getenv("MADELINE_SOUNDFONT")) snprintf(madeline_soundfont, sizeof madeline_soundfont, "%s", getenv("MADELINE_SOUNDFONT"));
+    else ini_get("soundfont", madeline_soundfont, sizeof madeline_soundfont);
 
     win32hle_register(madeline_shims);          /* ours first: the first of a name wins */
     win32hle_register(madeline_print);

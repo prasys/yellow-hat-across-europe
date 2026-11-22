@@ -44,10 +44,11 @@ your copy of the game, so please do not pass it on.
 ## What you need
 
 - A copy of the game, as above.
-- A Mac on macOS 13 or later (Apple silicon or Intel), or a Windows 10/11 PC,
-  64-bit.
+- A Mac on macOS 13 or later (Apple silicon or Intel), a Windows 10/11 PC
+  (64-bit), or a Linux PC (x86-64).
 - About 700 MB free for the unpacked disc, plus room for the build.
-- A terminal. On the Mac that is Terminal; on Windows it is the MSYS2 shell.
+- A terminal. On the Mac that is Terminal; on Windows it is the MSYS2 shell;
+  on Linux, any terminal.
   Copy the commands below one at a time.
 
 ## Install on a Mac
@@ -145,6 +146,66 @@ run from the launcher is in `last-run.log` there. As on the Mac, `build/app`
 contains code made from your copy of the game: do not pass it on.
 ([brief 05](docs/briefs/05-windows-build.md) has what is left.)
 
+## Install on Linux (x86-64)
+
+**1. Install the build tools and libraries.** FluidSynth and a SoundFont play
+the music; GTK 4 draws the launcher.
+
+```sh
+# Arch, CachyOS, Manjaro:
+sudo pacman -S --needed base-devel git sdl2 sdl2_ttf fluidsynth soundfont-fluid gtk4 python 7zip
+# Debian, Ubuntu:
+sudo apt install build-essential git pkg-config libsdl2-dev libsdl2-ttf-dev \
+  libfluidsynth-dev fluid-soundfont-gm libgtk-4-dev python3-venv 7zip
+```
+
+**2. Get the code and its one submodule.**
+
+```sh
+git clone https://github.com/prasys/yellow-hat-across-europe.git
+cd yellow-hat-across-europe
+git submodule update --init
+```
+
+**3. Unpack your disc, once.**
+
+```sh
+make extract ISO=/path/to/your/Madeline_European_Adventures.iso
+```
+
+**4. Build it.**
+
+```sh
+make                                   # lifts MADEURO.EXE, builds build/madeline
+```
+
+**5. Open the launcher.**
+
+```sh
+make launch                            # the launcher: settings and a Play button
+make desktop                           # optional: put it in your desktop's menu (make undesktop removes it)
+```
+
+![the Linux launcher, dark theme, with a disc chosen and the engine built for it](docs/launcher-linux.png)
+
+`make launch` builds the folder `build/app` and opens the launcher in it: the
+same window as on the Mac and Windows. It unpacks a disc image itself (with
+7z or bsdtar), rebuilds the engine for a different disc through this
+checkout, shows which SoundFont the music will use and lets you choose
+another, and lists the saved games. `make run` starts the game directly
+instead. What the game printed on its last run from the launcher is in
+`last-run.log` beside the saves. As on the other systems, `build/app`
+contains code made from your copy of the game: do not pass it on.
+
+Saves and settings are in `~/.local/share/madeline-european-adventures/`
+(`$XDG_DATA_HOME`). The packages above install a General MIDI SoundFont where
+it is looked for; any other `.sf2` can be named with `soundfont=` in
+`madeline.ini`. Without FluidSynth or a SoundFont the game plays with its
+speech and effects and no music (it says so once at start). SDL draws on
+Wayland itself when it can; `SDL_VIDEODRIVER=x11` runs it through XWayland
+instead. arm64 Linux should build the same way (CI builds it); the game has
+not been played on one.
+
 ## Playing
 
 - The mouse does everything; the sign-in book takes your name from the keyboard
@@ -180,7 +241,8 @@ contains code made from your copy of the game: do not pass it on.
   somewhere else. On Windows and Linux the PDF is opened in your PDF viewer,
   to print from there.
 - Saved games are kept in
-  `~/Library/Application Support/MadelineEuropeanAdventures/CWONDERS/MADEURO/`.
+  `~/Library/Application Support/MadelineEuropeanAdventures/CWONDERS/MADEURO/`
+  (Linux: `~/.local/share/madeline-european-adventures/CWONDERS/MADEURO/`).
 
 Options: set them in the launcher, or on the command line, or in
 `madeline.ini` in `~/Library/Application Support/MadelineEuropeanAdventures/`
@@ -198,6 +260,7 @@ Options: set them in the launcher, or on the command line, or in
 | | `pointer=game` | The game's own pointers, which change shape over things you can click (the girl, arrows over doors). By default a plain arrow everywhere |
 | | `bars=black` | Black beside the picture when full screen, instead of a blur of it |
 | *path* | `cd=/path` | The folder with the disc's files |
+| | `soundfont=/path/to.sf2` | Linux: the SoundFont the music is played with (else a system one is looked for) |
 
 ```sh
 build/madeline --skip-intro game/cd
@@ -279,6 +342,12 @@ through SDL; the MIDI music plays through macOS's built-in synthesizer.
 On Windows 11 the same play-throughs pass and the game has been started in a
 window and looked and listened to once (2026-11-17), through Windows' own
 MIDI synthesizer; it has had far less play there than on the Mac.
+On Linux (CachyOS, x86-64, Wayland; 2026-11-21) the lift builds and the same
+headless play-throughs pass: start-up, menu, sign-in, a new game to the Paris
+station, quitting with a save, and "old game" from it. A window opens on
+Wayland. The MIDI music through FluidSynth has been checked by its traces
+(loaded, played, its end reported to the game) but not yet listened to, and
+nobody has played the Linux build by hand yet.
 
 Printing (2026-11-21): a scripted play-through paints a picture, presses
 Print and gets a PDF that matches the screen; the Mac's print dialog has been
@@ -323,14 +392,14 @@ your disc ──extract──> game/cd/MADEURO.EXE ──pcrecomp──> build/g
 | `src/xbr.c` | The optional xBR doubling of the picture |
 | `src/print.c` | The printer: the game's one printed page, kept as a PDF. `src/mac/print_mac.m` puts the Mac's print dialog on it |
 | `src/audio.c` | `waveOut` on SDL audio, with buffers reported done when actually heard (the game times animation by it); MCI for the music |
-| `src/midi.c` | Standard MIDI Files on AudioToolbox |
+| `src/midi.c` | Standard MIDI Files on AudioToolbox; on Linux, FluidSynth into SDL's audio |
 | `src/win/` | Windows only: the POSIX calls pcrecomp's Win32 layer makes, on the Windows API; MIDI on MCI; opening a printed PDF |
 | `src/platform.c` | Where the player's files live on each system |
 | `src/shims.c` | The CD-ROM drive check, the installer's registry entry, the clock, the window's size |
 | `src/pad.c` | A game controller as the mouse and a few keys; tells mouse-and-keys, touch and pad apart |
 | `src/osk.c` | The keyboard drawn on the screen for the sign-in book, when there are no real keys |
 | `src/debug.c` | A script driver for tests; screenshots |
-| `launcher/` | The macOS app: a SwiftUI settings window and Play button around the engine. `launcher/win/`: the same window on Win32 |
+| `launcher/` | The macOS app: a SwiftUI settings window and Play button around the engine. `launcher/win/`: the same window on Win32; `launcher/linux/`: on GTK 4 |
 | `third_party/pcrecomp` | The recompiler and the Win32 layer (submodule) |
 
 [docs/NOTES.md](docs/NOTES.md) has what was learned about the executable;
