@@ -6,23 +6,16 @@
 # system by the kit's selftest, which builds an engine from an empty lift with
 # the release's own Python, zig and host, and starts it.
 #
-# A tag v* makes a draft GitHub release with the four files: a person reads
-# it over and publishes it. A pull request that touches what goes into them,
-# or a run by hand (workflow_dispatch), builds and checks them and leaves
-# the files as the run's artifacts only.
+# Built only when asked, not on every commit (build.yml checks those):
+#   - a tag v* makes a draft GitHub release with the four files; a person
+#     reads it over and publishes it;
+#   - Actions > release > Run workflow (or `gh workflow run release`) builds
+#     and checks them from any branch and leaves them as the run's artifacts.
 name: release
 
 on:
   push:
     tags: ["v*"]
-  pull_request:
-    paths:
-      - kit/**
-      - scripts/package/**
-      - launcher/**
-      - src/**
-      - Makefile
-      - .github/workflows/release.yml
   workflow_dispatch:
 
 concurrency:
