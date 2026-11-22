@@ -56,6 +56,7 @@ enum { TIMER_SNAPSHOT = 1 };
 
 static const wchar_t *const SCALE_KEYS[] = { L"smooth", L"sharp", L"crt", L"nearest", L"integer" };
 static const wchar_t *const SCALE_LABELS[] = { L"Smooth", L"Sharp", L"CRT monitor", L"Blocky pixels", L"Whole multiples only" };
+#define FOOT_Y 480       /* the rule above the footer; the window is 880 x (FOOT_Y + 62) */
 #define KEYS_HINT L"F8 xBR  \u00B7  F9 screenshot  \u00B7  F10 smoothing  \u00B7  F11 full screen  \u00B7  F12 scaling"
 
 static HWND g_wnd, g_disc_status, g_disc_path, g_engine_status, g_engine_hint, g_choose, g_build, g_open,
@@ -557,7 +558,7 @@ static void paint(HDC dc) {
     DeleteDC(m);
     SelectObject(dc, rule);
     MoveToEx(dc, 0, S(92), NULL); LineTo(dc, rc.right, S(92));
-    MoveToEx(dc, 0, S(594), NULL); LineTo(dc, rc.right, S(594));
+    MoveToEx(dc, 0, S(FOOT_Y), NULL); LineTo(dc, rc.right, S(FOOT_Y));
     RestoreDC(dc, state);
     DeleteObject(rule);
 }
@@ -623,47 +624,49 @@ static HWND label(const wchar_t *text, int x, int y, int w, int h, int id, HFONT
 static HWND checkbox(const wchar_t *text, int x, int y, int w, int id) { return control(L"BUTTON", text, BS_AUTOCHECKBOX | WS_TABSTOP, x, y, w, 22, id, g_font); }
 static HWND dropdown(int x, int y, int w, int id) { return control(L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP, x, y, w, 200, id, g_font); }
 
+/* Two columns, so the window is wide rather than tall and fits a small screen:
+ * the disc and the saves on the left, how the game starts and looks on the right. */
 static void create(void) {
-    const int L = 24, R = 332, W = 592;                 /* left column, right column, full width; the window is 640 wide */
+    const int L = 24, LB = 340, R = 464, RD = 696, RW = 392;   /* left column (button at LB), right column (drop-downs at RD) */
     label(L"Game disc", L, 106, 280, 18, ID_TEXT, g_bold);
-    g_disc_status = label(L"", L, 128, 470, 18, ID_DISC_STATUS, g_font);
-    g_disc_path = control(L"STATIC", L"", SS_NOPREFIX | SS_PATHELLIPSIS, L, 147, 470, 18, ID_HINT, g_font);
-    g_choose = control(L"BUTTON", L"Choose\u2026", BS_PUSHBUTTON | WS_TABSTOP, 516, 128, 100, 28, ID_CHOOSE, g_font);
-    g_engine_status = label(L"", L, 172, 470, 18, ID_ENGINE_STATUS, g_font);
-    g_engine_hint = label(L"The game's program is translated to native code from your disc, on this PC.", L, 191, 480, 18, ID_HINT, g_font);
-    g_build = control(L"BUTTON", L"Build", BS_PUSHBUTTON | WS_TABSTOP, 516, 172, 100, 28, ID_BUILD, g_font);
+    g_disc_status = label(L"", L, 128, 306, 18, ID_DISC_STATUS, g_font);
+    g_disc_path = control(L"STATIC", L"", SS_NOPREFIX | SS_PATHELLIPSIS, L, 147, 306, 18, ID_HINT, g_font);
+    g_choose = control(L"BUTTON", L"Choose\u2026", BS_PUSHBUTTON | WS_TABSTOP, LB, 128, 100, 28, ID_CHOOSE, g_font);
+    g_engine_status = label(L"", L, 172, 306, 18, ID_ENGINE_STATUS, g_font);
+    g_engine_hint = label(L"The game's program is translated to native code from your disc, on this PC.", L, 191, 306, 34, ID_HINT, g_font);
+    g_build = control(L"BUTTON", L"Build", BS_PUSHBUTTON | WS_TABSTOP, LB, 172, 100, 28, ID_BUILD, g_font);
 
-    label(L"Starting up", L, 226, 280, 18, ID_TEXT, g_bold);
-    g_skip = checkbox(L"Skip the opening movies", L, 248, 284, ID_SKIP);
-    g_name = checkbox(L"Fill in my name on the sign-in book", L, 274, 284, ID_NAME);
-    g_full = checkbox(L"Start in full screen", L, 300, 284, ID_FULL);
-    g_pad = checkbox(L"Play with a game controller", L, 326, 284, ID_PAD);
+    label(L"Saved games", L, 242, 280, 18, ID_TEXT, g_bold);
+    g_open = control(L"BUTTON", L"Open folder", BS_PUSHBUTTON | WS_TABSTOP, LB, 236, 100, 26, ID_OPEN, g_font);
+    g_saves = control(WC_LISTVIEWW, L"", LVS_REPORT | LVS_SINGLESEL | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP, L, 268, LB + 100 - L, 150, ID_SAVES, g_font);
+    SendMessageW(g_saves, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER);
+    LVCOLUMNW col = { .mask = LVCF_TEXT | LVCF_WIDTH, .cx = S(160), .pszText = L"Name" };
+    SendMessageW(g_saves, LVM_INSERTCOLUMNW, 0, (LPARAM)&col);
+    col.cx = S(234); col.pszText = L"Saved";
+    SendMessageW(g_saves, LVM_INSERTCOLUMNW, 1, (LPARAM)&col);
+    label(L"Each name signed into the book has its own game: sign in with it again and choose \u201Cold game\u201D.", L, 426, LB + 100 - L, 34, ID_HINT, g_font);
 
-    label(L"Picture", R, 226, 280, 18, ID_TEXT, g_bold);
-    g_smooth = checkbox(L"Smooth the painting", R, 248, 284, ID_SMOOTH);
-    g_xbr = checkbox(L"Redraw edges at twice the size (xBR)", R, 272, 284, ID_XBR);
-    label(L"Scaling", R, 301, 120, 18, ID_TEXT, g_font);
-    g_scale = dropdown(456, 297, 160, ID_SCALE);
-    label(L"Beside the picture", R, 329, 120, 18, ID_TEXT, g_font);
-    g_bars = dropdown(456, 325, 160, ID_BARS);
+    label(L"Starting up", R, 106, 280, 18, ID_TEXT, g_bold);
+    g_skip = checkbox(L"Skip the opening movies", R, 128, RW, ID_SKIP);
+    g_name = checkbox(L"Fill in my name on the sign-in book", R, 154, RW, ID_NAME);
+    g_full = checkbox(L"Start in full screen", R, 180, RW, ID_FULL);
+    g_pad = checkbox(L"Play with a game controller", R, 206, RW, ID_PAD);
+    g_ptr = checkbox(L"Use the game's own mouse pointers", R, 232, RW, ID_PTR);
+
+    label(L"Picture", R, 272, 280, 18, ID_TEXT, g_bold);
+    g_smooth = checkbox(L"Smooth the painting", R, 294, RW, ID_SMOOTH);
+    g_xbr = checkbox(L"Redraw edges at twice the size (xBR)", R, 320, RW, ID_XBR);
+    label(L"Scaling", R, 351, 200, 18, ID_TEXT, g_font);
+    g_scale = dropdown(RD, 347, 160, ID_SCALE);
+    label(L"Beside the picture", R, 381, 200, 18, ID_TEXT, g_font);
+    g_bars = dropdown(RD, 377, 160, ID_BARS);
     for (int i = 0; i < 5; i++) SendMessageW(g_scale, CB_ADDSTRING, 0, (LPARAM)SCALE_LABELS[i]);
     SendMessageW(g_bars, CB_ADDSTRING, 0, (LPARAM)L"Soft blur");
     SendMessageW(g_bars, CB_ADDSTRING, 0, (LPARAM)L"Black");
-    g_ptr = checkbox(L"Use the game's own mouse pointers", L, 352, 284, ID_PTR);
-    label(L"Smoothing melts the 256-colour speckle into washes of paint; xBR takes the stair-steps out of slanted lines.", L, 386, W, 18, ID_HINT, g_font);
+    label(L"Smoothing melts the 256-colour speckle into washes of paint; xBR takes the stair-steps out of slanted lines.", R, 414, RW, 34, ID_HINT, g_font);
 
-    label(L"Saved games", L, 422, 280, 18, ID_TEXT, g_bold);
-    g_open = control(L"BUTTON", L"Open folder", BS_PUSHBUTTON | WS_TABSTOP, 516, 416, 100, 26, ID_OPEN, g_font);
-    g_saves = control(WC_LISTVIEWW, L"", LVS_REPORT | LVS_SINGLESEL | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP, L, 448, W, 104, ID_SAVES, g_font);
-    SendMessageW(g_saves, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER);
-    LVCOLUMNW col = { .mask = LVCF_TEXT | LVCF_WIDTH, .cx = S(270), .pszText = L"Name" };
-    SendMessageW(g_saves, LVM_INSERTCOLUMNW, 0, (LPARAM)&col);
-    col.cx = S(300); col.pszText = L"Saved";
-    SendMessageW(g_saves, LVM_INSERTCOLUMNW, 1, (LPARAM)&col);
-    label(L"Each name signed into the book has its own game: sign in with it again and choose \u201Cold game\u201D.", L, 560, W, 18, ID_HINT, g_font);
-
-    g_status = label(L"", L, 608, 450, 34, ID_HINT, g_font);
-    g_play = control(L"BUTTON", L"", BS_OWNERDRAW | WS_TABSTOP, 496, 606, 120, 36, ID_PLAY, g_playfont);
+    g_status = label(L"", L, FOOT_Y + 14, 690, 34, ID_HINT, g_font);
+    g_play = control(L"BUTTON", L"", BS_OWNERDRAW | WS_TABSTOP, 736, FOOT_Y + 12, 120, 36, ID_PLAY, g_playfont);
 }
 
 static LRESULT CALLBACK wndproc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp) {
@@ -846,7 +849,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmdline, int show) {
         .hIcon = hat_icon(GetSystemMetrics(SM_CXICON)), .hIconSm = hat_icon(GetSystemMetrics(SM_CXSMICON)) };
     RegisterClassExW(&wc);
     DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN;
-    RECT r = { 0, 0, S(640), S(656) }, work;
+    RECT r = { 0, 0, S(880), S(FOOT_Y + 62) }, work;
     AdjustWindowRectEx(&r, style, FALSE, 0);
     SystemParametersInfoW(SPI_GETWORKAREA, 0, &work, 0);
     g_wnd = CreateWindowExW(0, wc.lpszClassName, TITLE, style,
