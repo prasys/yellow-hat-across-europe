@@ -3,7 +3,7 @@
 # The Little Girl in the Yellow Hat Across Europe
 
 **Madeline: European Adventures** (Creative Wonders, 1996), running as a native
-app on macOS and Windows. No Windows 95, no Wine, no emulator.
+app on modern computers. No emulators, no messing around with a lot of settings.
 
 ## Why I made this
 
