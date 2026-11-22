@@ -52,7 +52,7 @@ BIN      := $(B)/madeline$(EXE)
 
 HLE_OBJ  := $(patsubst $(HLE)/%.c,$(B)/obj/hle/%.o,$(HLE_SRC))
 SRC_OBJ  := $(patsubst src/%.m,$(B)/obj/src/%.o,$(patsubst src/%.c,$(B)/obj/src/%.o,$(HOST_SRC)))
-GEN_OBJ  := $(B)/obj/gen/recomp_0000.o $(B)/obj/gen/recomp_dispatch.o
+GEN_OBJ  := $(B)/obj/gen/recomp_0000.o $(B)/obj/gen/recomp_dispatch.o $(B)/obj/gen/lift_id.o
 
 all: $(BIN)
 
@@ -73,29 +73,32 @@ $(B)/obj/gen/%.o: $(B)/gen/%.c
 	$(CC) $(GENOPT) -w $(CFLAGS) -include $(B)/gen/recomp_funcs.h -c $< -o $@
 
 # The lifted C is made from the player's own MADEURO.EXE; it is never committed.
-# lift_id.h records which MADEURO.EXE that was (its POSIX cksum and size). It
+# lift_id.c records which MADEURO.EXE that was (its POSIX cksum and size). It
 # is rewritten only when the disc's EXE is a different file, which is what
 # makes a different disc lift again; the engine checks it against the disc it
 # is started with (src/main.c), since code lifted from one build cannot run
-# another's data.
+# another's data. It is linked, not included, so that a release can link a
+# host it carries already built to a lift made on the player's machine
+# (kit/madeline_kit.py writes the same file).
 ifdef STUB
-build/stub/gen/recomp_0000.c:
-	@mkdir -p build/stub/gen
-	@printf '#pragma once\n' > build/stub/gen/recomp_funcs.h
-	@printf '#define LIFT_CKSUM 0u\n#define LIFT_SIZE 0u\n' > build/stub/gen/lift_id.h
-	@printf '#include "recomp_types.h"\nconst recomp_dispatch_entry_t recomp_dispatch_table[] = { { 0, 0 } };\nconst uint32_t recomp_dispatch_count = 0;\n' > build/stub/gen/recomp_dispatch.c
+$(B)/gen/recomp_0000.c:
+	@mkdir -p $(B)/gen
+	@printf '#pragma once\n' > $(B)/gen/recomp_funcs.h
+	@printf '#include "recomp_types.h"\nconst recomp_dispatch_entry_t recomp_dispatch_table[] = { { 0, 0 } };\nconst uint32_t recomp_dispatch_count = 0;\n' > $(B)/gen/recomp_dispatch.c
 	@printf '/* no game: an empty lift (make STUB=1) */\ntypedef int no_lift;\n' > $@
-build/stub/gen/recomp_dispatch.c build/stub/gen/lift_id.h: build/stub/gen/recomp_0000.c
+$(B)/gen/recomp_dispatch.c: $(B)/gen/recomp_0000.c
+$(B)/gen/lift_id.c:
+	@mkdir -p $(B)/gen
+	@printf '#include <stdint.h>\nconst uint32_t madeline_lift_cksum = 0u, madeline_lift_size = 0u;\n' > $@
 else
-build/gen/lift_id.h: $(CD)/MADEURO.EXE FORCE
+build/gen/lift_id.c: $(CD)/MADEURO.EXE FORCE
 	@mkdir -p build/gen
-	@cksum < "$(CD)/MADEURO.EXE" | awk '{ printf "#define LIFT_CKSUM %su\n#define LIFT_SIZE %su\n", $$1, $$2 }' > $@.new
+	@cksum < "$(CD)/MADEURO.EXE" | awk '{ printf "#include <stdint.h>\nconst uint32_t madeline_lift_cksum = %su, madeline_lift_size = %su;\n", $$1, $$2 }' > $@.new
 	@cmp -s $@.new $@ && rm $@.new || mv $@.new $@
-build/gen/recomp_0000.c: build/gen/lift_id.h
+build/gen/recomp_0000.c: build/gen/lift_id.c
 	scripts/lift.sh "$(CD)"
 build/gen/recomp_dispatch.c: build/gen/recomp_0000.c
 endif
-$(B)/obj/src/main.o: $(B)/gen/lift_id.h
 $(SRC_OBJ): src/madeline.h
 FORCE:
 lift:
@@ -106,6 +109,31 @@ extract:
 	scripts/extract_iso.sh "$(ISO)" $(CD)
 run: $(BIN)
 	$(BIN) "$(CD)"
+
+# make lint: the checks every change is held to, with no game needed. The
+# host's C must build without a warning (-Wformat-truncation is off: its
+# snprintf calls cut to size on purpose); clang-tidy runs the bug finders in
+# .clang-tidy; shellcheck reads the scripts, ruff the Python. Each platform
+# also lints its own launcher (LAUNCHER_LINT, below). A tool that is not
+# installed is skipped with a note, unless LINT_STRICT=1 (CI).
+LINT_WARN  := -Wall -Wextra -Werror -Wno-unknown-warning-option -Wno-format-truncation
+TIDY       ?= clang-tidy
+SHELLCHECK ?= shellcheck
+RUFF       ?= ruff
+have = command -v $(1) >/dev/null 2>&1 || { [ -z "$(LINT_STRICT)" ] && echo "lint: $(1) is not installed, skipped" && exit 0; echo "lint: $(1) is not installed" >&2; exit 1; }
+lint:
+	@for f in $(HOST_SRC); do case $$f in *.m) arc=-fobjc-arc ;; *) arc= ;; esac; \
+	  $(CC) -fsyntax-only $(LINT_WARN) $(CFLAGS) $$arc $$f || exit 1; done; echo "lint: host C ok"
+	$(LAUNCHER_LINT)
+	$(LAUNCHER_LINT2)
+	@$(call have,$(TIDY)); $(TIDY) --quiet $(wildcard src/*.c) -- $(CFLAGS) && echo "lint: clang-tidy ok"
+	@$(call have,$(SHELLCHECK)); $(SHELLCHECK) -x $(wildcard scripts/*.sh scripts/package/*.sh tests/*.sh) && echo "lint: shellcheck ok"
+	@$(call have,$(RUFF)); $(RUFF) check $(wildcard kit tests) && echo "lint: ruff ok"
+
+# make test: the kit's tests, the stub engine's start and its agreement with
+# the kit, and (with the game here) a boot to the main menu. tests/run.sh says more.
+test:
+	tests/run.sh
 
 ifneq (,$(findstring MINGW,$(UNAME)))
 # The launcher (Windows): a Win32 window for the settings and a Play button
@@ -118,6 +146,7 @@ APPEXE   := Yellow Hat Across Europe.exe
 build/obj/launcher_res.o: launcher/win/launcher.rc launcher/win/launcher.manifest
 	@mkdir -p $(@D)
 	windres -I launcher/win $< -o $@
+LAUNCHER_LINT = @$(CC) -fsyntax-only $(LINT_WARN) -municode launcher/win/launcher.c && echo "lint: launcher ok"
 build/launcher.exe: launcher/win/launcher.c build/obj/launcher_res.o
 	$(CC) -O2 -Wall -municode -mwindows -static -o $@ $^ -lcomctl32 -lcomdlg32 -lshell32 -lole32 -lgdi32 -lmsimg32
 # Files are copied over an existing folder rather than the folder being replaced:
@@ -142,7 +171,9 @@ else ifeq ($(UNAME),Darwin)
 # own game, so it is for the machine it was built on: do not hand it on.
 APP      := $(B)/The Little Girl in the Yellow Hat Across Europe.app
 SWIFTC   ?= swiftc
-build/launcher: $(filter-out launcher/make_icon.swift,$(wildcard launcher/*.swift))
+LAUNCHER_SWIFT := $(filter-out launcher/make_icon.swift,$(wildcard launcher/*.swift))
+LAUNCHER_LINT = @$(SWIFTC) -typecheck -warnings-as-errors -parse-as-library -target $(shell uname -m)-apple-macos13.0 $(LAUNCHER_SWIFT) && echo "lint: launcher ok"
+build/launcher: $(LAUNCHER_SWIFT)
 	@mkdir -p build
 	$(SWIFTC) -O -parse-as-library -target $(shell uname -m)-apple-macos13.0 $^ -o $@
 # The icon is drawn by a script (launcher/make_icon.swift), then cut to the sizes macOS wants.
@@ -177,6 +208,8 @@ APP      := $(B)/app
 LAUNCHER := yellow-hat-across-europe
 APP_ID   := io.github.prasys.YellowHatAcrossEurope
 APPS     := $(or $(XDG_DATA_HOME),$(HOME)/.local/share)
+LAUNCHER_LINT = @$(CC) -fsyntax-only $(LINT_WARN) -Isrc $(shell pkg-config --cflags gtk4) launcher/linux/launcher.c && echo "lint: launcher ok"
+LAUNCHER_LINT2 = @$(call have,$(TIDY)); $(TIDY) --quiet launcher/linux/launcher.c -- -Isrc $(shell pkg-config --cflags gtk4) && echo "lint: clang-tidy (launcher) ok"
 build/launcher-linux: launcher/linux/launcher.c src/soundfonts.h
 	@mkdir -p build
 	$(CC) -O2 -Wall -Isrc $(shell pkg-config --cflags gtk4) -o $@ $< $(shell pkg-config --libs gtk4)
@@ -210,4 +243,4 @@ undesktop:
 endif
 clean:
 	rm -rf build
-.PHONY: all lift extract run app engine-into-app launch desktop undesktop clean FORCE
+.PHONY: all lift extract run lint test app engine-into-app launch desktop undesktop clean FORCE

@@ -17,6 +17,14 @@
  * (for checking the layout). MADELINE_SAVE_DIR moves the settings and saves,
  * as it does for the engine: tests use it so they never touch a player's own.
  * MADELINE_ENGINE names the engine (default: `madeline` beside this program).
+ *
+ * A release (the AppImage, scripts/package/linux.sh) carries no engine: the
+ * engine is the game's code and is built on the player's machine by the kit
+ * (kit/madeline_kit.py), into the data folder. With a kit (MADELINE_KIT, else
+ * ../lib/yellow-hat-across-europe/kit), unpacking, checking and building go
+ * through it; without one (a build from a checkout) they go through make.
+ * MADELINE_ENGINE_LIBS (set by the AppImage) is the engine's LD_LIBRARY_PATH,
+ * given to the engine alone.
  */
 #include <gtk/gtk.h>
 #include <glib/gstdio.h>
@@ -45,11 +53,12 @@ static GtkWidget *g_disc_status, *g_disc_path, *g_engine_status, *g_engine_hint,
 
 static char g_data[PATH_MAX];          /* settings, saves, screenshots: the engine's folder (src/platform.c) */
 static char g_ini[PATH_MAX + 16];
-static char g_engine[PATH_MAX + 16];   /* the engine, beside this program */
+static char g_engine[PATH_MAX + 32];   /* the engine: beside this program, or a release's in the data folder */
 static char g_root[PATH_MAX];          /* the checkout this was built from, for building an engine */
+static char g_kit[PATH_MAX + 64];      /* a release's kit, or empty */
 static char g_disc[PATH_MAX];
 static char g_soundfont[PATH_MAX];     /* soundfont= in madeline.ini; empty: the system's */
-static char g_message[PATH_MAX + 256]; /* what the footer says; empty: the key hints */
+static char g_footer[PATH_MAX + 256]; /* what the footer says; empty: the key hints */
 static char g_snapshot[PATH_MAX];
 static int g_busy, g_building, g_playing, g_then_build, g_loading;
 static int g_engine_ok = -1;           /* was the engine recompiled from this disc's MADEURO.EXE? -1: not known yet */
@@ -62,7 +71,7 @@ static int disc_valid(void) {
     snprintf(exe, sizeof exe, "%s/MADEURO.EXE", g_disc);
     return file_exists(exe);
 }
-static void say(const char *text) { g_strlcpy(g_message, text, sizeof g_message); }
+static void say(const char *text) { g_strlcpy(g_footer, text, sizeof g_footer); }
 
 /* ---- madeline.ini ------------------------------------------------------- */
 
@@ -237,7 +246,7 @@ static void tone(GtkWidget *w, const char *css) {      /* one of ok / warn / NUL
     gtk_widget_remove_css_class(w, "warn");
     if (css) gtk_widget_add_css_class(w, css);
 }
-static int can_build(void) { return g_root[0] && disc_valid() && !g_busy && !g_building && !g_playing; }
+static int can_build(void) { return (g_root[0] || g_kit[0]) && disc_valid() && !g_busy && !g_building && !g_playing; }
 static int can_play(void) { return disc_valid() && g_engine_ok == 1 && !g_busy && !g_building && !g_playing && file_exists(g_engine); }
 
 static void update(void) {
@@ -249,7 +258,8 @@ static void update(void) {
     char shown[PATH_MAX + 2];
     if (hl > 1 && !strncmp(g_disc, home, hl) && g_disc[hl] == '/') snprintf(shown, sizeof shown, "~%s", g_disc + hl);
     else g_strlcpy(shown, g_disc, sizeof shown);
-    gtk_label_set_text(GTK_LABEL(g_disc_path), g_disc[0] ? shown : "Choose your own disc image (.iso) or a folder with the disc's files.");
+    gtk_label_set_text(GTK_LABEL(g_disc_path), g_disc[0] ? shown : g_kit[0] ? "Choose your own disc image (.iso, or the .zip it came in) or a folder with the disc's files."
+                                                                           : "Choose your own disc image (.iso) or a folder with the disc's files.");
     gtk_label_set_text(GTK_LABEL(g_engine_status), g_building ? "Recompiling the game from your disc…"
                        : g_engine_ok == 1 ? "✓  Engine built for this disc"
                        : g_engine_ok == 0 ? "This disc needs its engine built" : "Checking the engine…");
@@ -272,7 +282,7 @@ static void update(void) {
     tone(g_sf_status, sf[0] ? "ok" : "warn");
     gtk_widget_set_visible(g_sf_reset, g_soundfont[0] != 0);
 
-    gtk_label_set_text(GTK_LABEL(g_status), g_message[0] ? g_message : KEYS_HINT);
+    gtk_label_set_text(GTK_LABEL(g_status), g_footer[0] ? g_footer : KEYS_HINT);
 }
 
 /* ---- other programs: the engine, the build, the unpacking ---------------- */
@@ -286,7 +296,8 @@ static void job_done(GObject *src, GAsyncResult *res, gpointer fn) {
     ((done_fn)fn)(code);
     g_object_unref(p);
 }
-/* Run a program, its output into `log` (or nowhere), and call `fn` with its exit code (-1: it would not start). */
+/* Run a program, its output into `log` (or nowhere), and call `fn` with its exit code (-1: it would not start).
+ * The engine (argv[0] == g_engine) is given the AppImage's libraries, which no other program must see. */
 static void start_job(const char *const *argv, const char *cwd, const char *log, done_fn fn) {
     GSubprocessLauncher *l = g_subprocess_launcher_new(log ? G_SUBPROCESS_FLAGS_STDERR_MERGE
                                                            : G_SUBPROCESS_FLAGS_STDOUT_SILENCE | G_SUBPROCESS_FLAGS_STDERR_SILENCE);
@@ -297,6 +308,8 @@ static void start_job(const char *const *argv, const char *cwd, const char *log,
     g_subprocess_launcher_setenv(l, "SDL_APP_ID", APP_ID, TRUE);
     g_subprocess_launcher_setenv(l, "SDL_VIDEO_WAYLAND_WMCLASS", APP_ID, TRUE);
     g_subprocess_launcher_setenv(l, "SDL_VIDEO_X11_WMCLASS", APP_ID, TRUE);
+    const char *libs = getenv("MADELINE_ENGINE_LIBS");
+    if (libs && *libs && argv[0] == g_engine) g_subprocess_launcher_setenv(l, "LD_LIBRARY_PATH", libs, TRUE);
     GSubprocess *p = g_subprocess_launcher_spawnv(l, argv, &err);
     g_object_unref(l);
     if (!p) { g_clear_error(&err); fn(-1); return; }
@@ -306,11 +319,24 @@ static void start_job(const char *const *argv, const char *cwd, const char *log,
 static void check_engine(int then_build);
 static void use_folder(const char *path);
 
+/* The kit's tool, run by the kit's own Python: { python, -IB, madeline_kit.py, cmd, a, b }. -B: the kit is
+ * read-only (an AppImage), so no bytecode is written beside it. */
+static char g_kit_python[PATH_MAX + 96], g_kit_tool[PATH_MAX + 96], g_engine_dir[PATH_MAX + 16];
+static void kit_argv(const char *argv[7], const char *cmd, const char *a, const char *b) {
+    argv[0] = g_kit_python, argv[1] = "-IB", argv[2] = g_kit_tool, argv[3] = cmd, argv[4] = a, argv[5] = b, argv[6] = NULL;
+}
+static void build_log(char *out, size_t n) {
+    if (g_kit[0]) snprintf(out, n, "%s/engine-build.log", g_data);
+    else snprintf(out, n, "%s/build/launcher-build.log", g_root);
+}
+
 static void built(int code) {
+    char log[PATH_MAX + 64];
     g_building = 0;
     if (code == 0) { say("Engine built for this disc."); check_engine(0); return; }
     g_engine_ok = 0;
-    snprintf(g_message, sizeof g_message, "The build failed. See %s/build/launcher-build.log", g_root);
+    build_log(log, sizeof log);
+    snprintf(g_footer, sizeof g_footer, "The build failed. See %s", log);
     update();
 }
 /* The engine is the game's own code, lifted from one particular MADEURO.EXE:
@@ -318,13 +344,23 @@ static void built(int code) {
  * this disc's, compiles it with the host and puts it beside this program. */
 static void build_engine(void) {
     char cd[PATH_MAX + 8], log[PATH_MAX + 64];
+    build_log(log, sizeof log);
+    if (g_kit[0]) {                    /* a release: the kit lifts and compiles into the data folder */
+        const char *argv[7];
+        kit_argv(argv, "build", g_disc, g_engine_dir);
+        g_mkdir_with_parents(g_data, 0755);
+        g_building = 1;
+        say("Recompiling the game from your disc… (one to three minutes the first time)");
+        update();
+        start_job(argv, NULL, log, built);
+        return;
+    }
     if (!g_root[0]) {
         say("This disc needs its own engine, and this program does not know where its source is. Run: make app CD=<disc folder>");
         update();
         return;
     }
     snprintf(cd, sizeof cd, "CD=%s", g_disc);
-    snprintf(log, sizeof log, "%s/build/launcher-build.log", g_root);
     const char *argv[] = { "make", "-C", g_root, "engine-into-app", cd, NULL };
     g_building = 1;
     say("Recompiling the game from your disc… (about a minute)");
@@ -338,10 +374,19 @@ static void checked_engine(int code) {
     if (!g_engine_ok && g_then_build) build_engine();
     g_then_build = 0;
 }
-/* Ask the engine whether it was built for this disc (`madeline --check`: 0 yes, 3 no). */
+/* Ask the engine whether it was built for this disc (`madeline --check`: 0 yes, 3 no);
+ * with a kit, the kit, which also knows whether this version of the app built it. */
 static void check_engine(int then_build) {
     g_then_build = then_build;
     if (!disc_valid()) { g_engine_ok = -1; update(); return; }
+    if (g_kit[0]) {
+        const char *argv[7];
+        kit_argv(argv, "check", g_disc, g_engine_dir);
+        g_engine_ok = -1;
+        update();
+        start_job(argv, NULL, NULL, checked_engine);
+        return;
+    }
     if (!file_exists(g_engine)) {
         g_engine_ok = 0;
         update();
@@ -359,7 +404,7 @@ static void played(int code) {
     load_settings(0);
     load_saves();
     if (code == 0) say("");
-    else snprintf(g_message, sizeof g_message, "The game stopped unexpectedly (code %d). See %s/last-run.log", code, g_data);
+    else snprintf(g_footer, sizeof g_footer, "The game stopped unexpectedly (code %d). See %s/last-run.log", code, g_data);
     update();
 }
 static void play(void) {
@@ -395,8 +440,9 @@ static void unpacked(int code) {
     g_busy = 0;
     snprintf(dest, sizeof dest, "%s/disc", g_data);
     if (code != 0) {
-        say(code == 3 ? "That image is not the game's disc: there is no MADEURO.EXE on it."
-                      : "Could not unpack that disc image. It needs 7-Zip (7z) or bsdtar installed.");
+        say(code == (g_kit[0] ? 65 : 3) ? "That image is not the game's disc: there is no MADEURO.EXE on it."
+            : g_kit[0] ? "Could not unpack that disc image. Is it a .iso, or a .zip with one inside?"
+                       : "Could not unpack that disc image. It needs 7-Zip (7z) or bsdtar installed.");
         update();
         return;
     }
@@ -410,6 +456,15 @@ static void unpacked(int code) {
 static void use_image(const char *iso) {
     char dest[PATH_MAX + 8];
     snprintf(dest, sizeof dest, "%s/disc", g_data);
+    if (g_kit[0]) {                    /* the kit reads .iso (and the .zip it is downloaded in) itself */
+        const char *argv[] = { g_kit_python, "-IB", g_kit_tool, "extract", "--replace", iso, dest, NULL };
+        g_mkdir_with_parents(g_data, 0755);
+        g_busy = 1;
+        say("Unpacking the disc image…");
+        update();
+        start_job(argv, NULL, NULL, unpacked);
+        return;
+    }
     g_mkdir_with_parents(dest, 0755);
     const char *argv[] = { "sh", "-c",
         "command -v bsdtar >/dev/null || command -v 7z >/dev/null || exit 2; "
@@ -455,9 +510,9 @@ static void soundfont_chosen(GObject *d, GAsyncResult *r, gpointer u) {
 
 static void choose_image(GSimpleAction *a, GVariant *v, gpointer u) {
     (void)a; (void)v; (void)u;
-    static const char *const iso[] = { "*.iso", "*.ISO", NULL };
+    static const char *const iso[] = { "*.iso", "*.ISO", NULL }, *const iso_zip[] = { "*.iso", "*.ISO", "*.zip", "*.ZIP", NULL };
     GtkFileDialog *d = gtk_file_dialog_new();
-    GListModel *f = filters("Disc images (.iso)", iso);
+    GListModel *f = g_kit[0] ? filters("Disc images (.iso, .zip)", iso_zip) : filters("Disc images (.iso)", iso);
     gtk_file_dialog_set_title(d, "Choose your own disc image of the game");
     gtk_file_dialog_set_filters(d, f);
     gtk_file_dialog_open(d, g_win, NULL, image_chosen, NULL);
@@ -688,7 +743,7 @@ static void build_window(GtkApplication *app) {
     gtk_box_append(GTK_BOX(b), g_disc_path = label_with("", "hint", 0));
     gtk_label_set_ellipsize(GTK_LABEL(g_disc_path), PANGO_ELLIPSIZE_MIDDLE);
     GMenu *menu = g_menu_new();
-    g_menu_append(menu, "Disc image (.iso)…", "app.choose-image");
+    g_menu_append(menu, g_kit[0] ? "Disc image (.iso or .zip)…" : "Disc image (.iso)…", "app.choose-image");
     g_menu_append(menu, "Folder with the disc's files…", "app.choose-folder");
     g_choose = gtk_menu_button_new();
     gtk_menu_button_set_label(GTK_MENU_BUTTON(g_choose), "Choose…");
@@ -829,6 +884,17 @@ int main(int argc, char **argv) {
     read_note(here, "source-root.txt", g_root, sizeof g_root);
     snprintf(makefile, sizeof makefile, "%s/Makefile", g_root);
     if (!file_exists(makefile)) g_root[0] = 0;
+    const char *kit = getenv("MADELINE_KIT");
+    char kit_json[PATH_MAX + 96];
+    if (kit && *kit) g_strlcpy(g_kit, kit, sizeof g_kit);
+    else snprintf(g_kit, sizeof g_kit, "%s/../lib/yellow-hat-across-europe/kit", here);
+    snprintf(kit_json, sizeof kit_json, "%s/kit.json", g_kit);
+    if (file_exists(kit_json)) {       /* a release: the engine lives in the data folder */
+        snprintf(g_kit_python, sizeof g_kit_python, "%s/python/bin/python3", g_kit);
+        snprintf(g_kit_tool, sizeof g_kit_tool, "%s/madeline_kit.py", g_kit);
+        snprintf(g_engine_dir, sizeof g_engine_dir, "%s/engine", g_data);
+        if (!(engine && *engine)) snprintf(g_engine, sizeof g_engine, "%s/madeline", g_engine_dir);
+    } else g_kit[0] = 0;
 
     /* A snapshot run is its own instance; otherwise a second start raises the first window. */
     GtkApplication *app = gtk_application_new(APP_ID, g_snapshot[0] ? G_APPLICATION_NON_UNIQUE : G_APPLICATION_DEFAULT_FLAGS);

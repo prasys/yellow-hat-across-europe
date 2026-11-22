@@ -5,6 +5,12 @@
 # place, so what is checked is that src/ and the pinned pcrecomp compile and
 # link, that the program starts, and that the launchers build. Whether the
 # game plays is still checked by hand with scripts/playtest.sh.
+#
+# Every job runs `make test` (tests/run.sh: the kit's tests, and the engine's
+# agreement with the kit). macOS and Windows also run `make lint` for their
+# own C and launcher (warnings as errors); the lint job does Linux's, strictly,
+# with clang-tidy, shellcheck and ruff.
+# The installable builds are made by release.yml.
 name: build
 
 on:
@@ -21,6 +27,19 @@ permissions:
   contents: read
 
 jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Tools
+        run: |
+          sudo apt-get update && sudo apt-get install -y libsdl2-dev libsdl2-ttf-dev libfluidsynth-dev libgtk-4-dev clang-tidy shellcheck
+          pipx install ruff
+      - name: make lint
+        run: make lint LINT_STRICT=1
+
   macos:
     runs-on: macos-latest
     steps:
@@ -33,6 +52,10 @@ jobs:
         run: make -j4 STUB=1
       - name: It starts
         run: scripts/smoke.sh build/stub/madeline
+      - name: Lint (host C, Swift launcher)
+        run: make lint
+      - name: Tests
+        run: make test
       - name: Launcher and app
         run: make STUB=1 app
 
@@ -55,10 +78,18 @@ jobs:
             mingw-w64-ucrt-x86_64-pkgconf
             mingw-w64-ucrt-x86_64-SDL2
             mingw-w64-ucrt-x86_64-SDL2_ttf
+            mingw-w64-ucrt-x86_64-python
+            mingw-w64-ucrt-x86_64-python-pip
       - name: Engine, with an empty lift
         run: make -j4 STUB=1
       - name: It starts
         run: scripts/smoke.sh build/stub/madeline.exe
+      - name: Lint (host C, Win32 launcher)
+        run: make lint
+      - name: Tests
+        run: |
+          python3 -m pip install --break-system-packages pycdlib
+          make test
       - name: Launcher and app folder
         run: make STUB=1 app
 
@@ -79,6 +110,8 @@ jobs:
         run: make -j4 STUB=1
       - name: It starts
         run: scripts/smoke.sh build/stub/madeline
+      - name: Tests
+        run: make test
       - name: Launcher and app folder
         run: make STUB=1 app
       - name: Engine, without FluidSynth

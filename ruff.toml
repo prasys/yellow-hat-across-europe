@@ -1,0 +1,6 @@
+# ruff for kit/ and tests/ (`make lint`): errors, likely bugs, and modern idioms.
+line-length = 160
+target-version = "py312"
+
+[lint]
+select = ["E", "F", "W", "B", "UP", "PLW1510"]

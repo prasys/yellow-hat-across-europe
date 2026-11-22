@@ -18,6 +18,7 @@ chmod -R u+rwX "$DEST"
 # empty without an error. Windows reads disc images itself: mount it, copy the
 # files, take it out again.
 if [ ! -f "$DEST/MADEURO.EXE" ] && command -v powershell.exe >/dev/null 2>&1 && command -v cygpath >/dev/null 2>&1; then
+  # shellcheck disable=SC2016  # the $names are PowerShell's, read from the environment
   ISO_W=$(cygpath -w "$(cd "$(dirname "$ISO")" && pwd)/$(basename "$ISO")") DEST_W=$(cygpath -w "$DEST") \
   powershell.exe -NoProfile -Command '
     $ErrorActionPreference = "Stop"

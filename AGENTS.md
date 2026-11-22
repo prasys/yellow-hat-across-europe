@@ -52,6 +52,9 @@ make clean                      # removes build/ (the lift too)
 make STUB=1                     # no game needed: an empty lift, into build/stub (what CI builds; scripts/smoke.sh checks it starts)
 scripts/playtest.sh OUT "SCRIPT" [speed]   # headless, fast-forwarded, screenshots + _sheet.png
 scripts/dis.sh 405b90 405c10    # original instructions for an address range, from the lift
+make lint                       # warnings as errors, clang-tidy, shellcheck, ruff (LINT_STRICT=1: missing tools fail)
+make test                       # tests/run.sh: kit tests, engine/kit agreement, boot to menu if game/cd is there
+scripts/package/linux.sh        # a release: AppImage (Ubuntu 24.04); windows.sh (zip, from Linux); macos.sh (dmg)
 ```
 
 Requirements: `brew install sdl2 sdl2_ttf`, Python 3 with `capstone` (the lift
@@ -64,11 +67,15 @@ SoundFont, 7z, GTK 4 for the launcher); `make app` builds `build/app/`
 
 CI (`.github/workflows/build.yml`) builds `make STUB=1` and the launchers on
 macOS, Windows and Linux (x86-64 and arm64; the engine also without
-FluidSynth). It has no game, so it cannot tell whether
-the game plays.
+FluidSynth), and runs `make test` on each and `make lint` on each system
+(strictly, with clang-tidy, shellcheck and ruff, on Linux). It has no game, so
+it cannot tell whether the game plays. `release.yml` makes the installable
+builds from a `v*` tag (a draft release) and runs each one's kit selftest on
+its own system.
 
-There is no unit-test suite. "It builds" is not verification: run a playtest
-that reaches the code you changed and look at the screenshots.
+`make test` covers the kit and the engine's start, not the game's behaviour.
+"It builds" is not verification: run a playtest that reaches the code you
+changed and look at the screenshots (`tests/game.sh` only proves the boot).
 
 ## Layout
 
@@ -90,18 +97,31 @@ that reaches the code you changed and look at the screenshots.
 | `launcher/` | SwiftUI app (macOS 13+): edits `madeline.ini` (every setting the engine reads from it, `upscale` included: a new one gets a control here, in `launcher/win/` and in `launcher/linux/`), lists saves, unpacks a disc image, runs the engine. Built with plain `swiftc` (`make app`), no Xcode project. `launcher --snapshot FILE` writes a picture of its window, for checking layout |
 | `launcher/linux/` | The same launcher for Linux: one C file on GTK 4, built by `make app` into `build/app/` with the engine (`yellow-hat-across-europe`). File choosers go through the desktop portal. Honours `MADELINE_SAVE_DIR` and `MADELINE_ENGINE`, takes a disc image or folder as its argument, `--snapshot FILE.png`. It shares the SoundFont list with the engine (`src/soundfonts.h`). The engine's window is given the launcher's app id (`SDL_APP_ID`...) so both sit under one desktop entry |
 | `launcher/win/` | The same launcher for Windows: one C file on plain Win32, built by `make app` into `build/app/` with the engine and its DLLs. It honours `MADELINE_SAVE_DIR` and `MADELINE_ENGINE`, takes a disc image or folder as its argument, and has `--snapshot FILE.bmp` too: check it against a test folder, never the player's |
-| `scripts/` | extract, lift, playtest, dis |
+| `scripts/` | extract, lift, playtest, dis, smoke |
+| `scripts/package/` | The releases: `common.sh` (pinned versions; lays out the kit), `linux.sh` (AppImage), `windows.sh` (zip, cross-built by zig), `macos.sh` (dmg) |
+| `kit/madeline_kit.py` | What a release does instead of `make`, on the player's machine: `extract` (ISO, or a zip holding one, by pycdlib), `build` (lift, compile with zig, link the prebuilt host), `check`, `selftest`. Run by the kit's own Python as `python -I -B` |
+| `tests/` | `make test`: `test_kit.py` (unittest), `engine_check.sh`, `game.sh`, `run.sh` |
 | `docs/` | NOTES (findings), ROADMAP (to do), `briefs/` (work orders), `MADEURO.sha256` (the build targeted) |
-| `build/gen/` | Generated: the lifted game. Never edit by hand, never commit |
+| `build/gen/` | Generated: the lifted game, and `lift_id.c`. Never edit by hand, never commit |
 
 ## How the host works (the parts that bite)
 
-- **The engine is tied to one MADEURO.EXE.** `build/gen/lift_id.h` holds the
-  POSIX cksum and size of the EXE that was lifted; `main.c` refuses any other
-  (exit 3) and `--check` reports it. A different disc must be re-lifted
+- **The engine is tied to one MADEURO.EXE.** `build/gen/lift_id.c` holds the
+  POSIX cksum and size of the EXE that was lifted (linked, not included, so a
+  release can carry `main.o` prebuilt); `main.c` refuses any other (exit 3)
+  and `--check` reports it. A different disc must be re-lifted
   (`make CD=...`); the launcher does this itself through
   `make engine-into-app`, using the checkout path stored in the app
   (`Contents/Resources/source-root`).
+- **A release carries no engine.** It has a kit instead (`kit/`, laid out by
+  `scripts/package/`): the launcher finds `kit.json` (`MADELINE_KIT`, else a
+  place beside it), and then unpacks, checks and builds through
+  `madeline_kit.py`, into `<data folder>/engine` with a `kit-stamp` naming
+  the kit's version and the EXE's cksum. The kit's checksum must stay POSIX
+  `cksum`'s (`tests/test_kit.py` holds it to that). Linux: the engine gets
+  the AppImage's libraries through `LD_LIBRARY_PATH` set on its process only
+  (`MADELINE_ENGINE_LIBS`); exported to everything, Ubuntu's libraries break
+  programs of a newer system (its `/bin/sh`, for one).
 - **Shim ABI.** A Win32 import is a `void fn(void)` run inside the lifted
   machine. Read stdcall arguments with `A32(i)`, `APTR(i)`, `ASTR(i)`; return
   with `RET(value, argc)`. **`argc` must be the real argument count** or the

@@ -1,0 +1,26 @@
+# clang-tidy for src/ and the launchers (`make lint`). Bug finders only: the
+# house style (one-line ifs, `if (strcmp(...))`, ints for pixel sums) is kept,
+# so the style and readability families are left out on purpose.
+#   insecureAPI      flags every memcpy/snprintf: noise here.
+#   ArrayBound       "tainted offset" on lines read with fgets, already bounded.
+#   no-int-to-ptr    guest addresses are ints by design (hle_ptr).
+Checks: >
+  -*,
+  clang-analyzer-*,
+  -clang-analyzer-security.insecureAPI.*,
+  -clang-analyzer-security.ArrayBound,
+  bugprone-suspicious-realloc-usage,
+  bugprone-misplaced-widening-cast,
+  bugprone-sizeof-expression,
+  bugprone-macro-repeated-side-effects,
+  bugprone-infinite-loop,
+  bugprone-integer-division,
+  bugprone-not-null-terminated-result,
+  bugprone-suspicious-memset-usage,
+  bugprone-too-small-loop-variable,
+  bugprone-multiple-statement-macro,
+  bugprone-undefined-memory-manipulation,
+  misc-redundant-expression,
+  readability-misleading-indentation
+WarningsAsErrors: '*'
+HeaderFilterRegex: '(src|launcher)/.*'

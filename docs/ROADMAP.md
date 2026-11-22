@@ -130,9 +130,13 @@ Ordered by how much each matters to someone actually playing.
       (`launcher/`) around the engine: disc chooser (ISO or folder), settings,
       saved games, Play. Layout checked from its own window snapshot; the
       controls have not been clicked through by a person yet.
-- [ ] **A self-contained app**: SDL2/SDL2_ttf inside the bundle
-      (`dylibbundler`), an app icon, code signing. Today it still needs
-      Homebrew's SDL and is built from a terminal.
+- [x] **A self-contained app** (2026-11-22): `release.yml` makes a dmg
+      (macOS, Apple silicon), a zip (Windows) and an AppImage (Linux x86-64,
+      aarch64) holding the launcher and a kit (`kit/madeline_kit.py`, a
+      portable Python, zig, the host already compiled, SDL), but no engine.
+      Not done: Apple signing and notarization, an Intel Mac build, a
+      SoundFont in the AppImage (on a system without one, such as a Steam
+      Deck, the music is silent).
 - [ ] **Launcher extras**: pick which saved game to continue (ties in with
       brief 01), volume, a screenshots browser, delete a save.
 - [x] **Build from the launcher** (2026-11-15): choosing a disc the engine
@@ -140,12 +144,17 @@ Ordered by how much each matters to someone actually playing.
       checkout, compiler tools and Homebrew SDL). The rebuild path itself has
       only been run for the same disc; a second, different pressing of the
       game has never been tried.
-- [ ] **The lift has to happen on the player's machine** (the lifted code is
-      the game's and cannot be shipped). For an app that means either bundling
-      the Python lifter, or loading a lift built at first run as a dylib.
-      Decide which before starting on the bundle.
+- [x] **The lift happens on the player's machine** (2026-11-22). The kit
+      lifts with pcrecomp under its own Python (split into ~14 files), compiles
+      with zig on every core and links the host's prebuilt objects; the lift
+      id is a linked `lift_id.c` so that `main.o` can be prebuilt. 40-50 s on
+      a 12-core x86-64 machine, the first time; the lift is deleted after.
+      The engine goes in the data folder, stamped with the kit's version, so
+      an app update rebuilds it. Checked end to end on Linux only (see the
+      README's "What works").
 - [ ] **Read the ISO directly** instead of extracting 626 MB (mount with
-      `hdiutil`, or a small ISO9660 reader behind `hle_set_drive`).
+      `hdiutil`, or a small ISO9660 reader behind `hle_set_drive`). The kit
+      now reads ISO 9660 itself (pycdlib), for unpacking only.
 - [x] **Settings file** (2026-11-15): `madeline.ini` is read and written;
       F10/F11/F12 choices are remembered. A volume setting is still missing.
 - [x] **Smoothing** (2026-11-15): on by default. `gfx.c` melts the 256-colour
@@ -177,8 +186,13 @@ Ordered by how much each matters to someone actually playing.
       `madeline.ini`. The original already stops a movie on Enter; the host
       presses it for the two opening movies. Uses two addresses from this
       build of the EXE (`shims.c`).
-- [ ] Code signing / notarization, if it is ever distributed as a binary.
-      (Distribution has to stay "bring your own disc".)
+- [ ] Code signing / notarization of the releases (macOS: Developer ID and
+      notarytool; Windows: Authenticode). They are distributed now, ad hoc
+      signed on macOS only. (Distribution stays "bring your own disc": the
+      releases hold no game.)
+- [ ] The releases' size: 100-130 MB each, most of it zig (its compiler
+      alone is 120-180 MB unpacked). A smaller C compiler (TinyCC) would do
+      if its code is fast enough and it targets all three systems.
 
 ## 4. Other platforms
 
@@ -259,9 +273,12 @@ Order: Linux, then Windows, then tablets. Full checklists are in the briefs; the
       path cannot be given to `make` (a user name with a space puts one in
       `%APPDATA%`); the window is laid out for the main display's scaling
       only.
-- [ ] A version to hand out: it must lift on the player's machine, which
-      today needs MSYS2 and this checkout. CI job; win32hle's selftests on
-      Windows.
+- [x] A version to hand out (2026-11-22): the release zip, cross-built on
+      Linux by zig against the official SDL2 builds; it lifts and compiles
+      with its own kit, no MSYS2. On Windows it is checked only by its
+      selftest in `release.yml` (not yet run: nothing is pushed), and it has
+      not been pointed at a real disc there. Left: win32hle's
+      selftests on Windows; whether Defender slows the first build.
 - [ ] Paths with non-ASCII characters (a user folder named in another
       script): the compatibility layer uses the ANSI file calls.
 
@@ -291,6 +308,11 @@ Order: Linux, then Windows, then tablets. Full checklists are in the briefs; the
       first way to play on a tablet, before touch is proven.
 
 ## 5. Housekeeping
+
+- [x] **Lint and tests in CI** (2026-11-22): `make lint` (warnings as errors,
+      clang-tidy's bug finders, shellcheck, ruff) and `make test` (the kit's
+      tests, the engine's lift id agreeing with the kit's, a boot to the main
+      menu when the game is present). Walkthrough tests are still brief 03.
 
 - [ ] **First commit.** Nothing is committed yet (submodule staged, the rest
       untracked).

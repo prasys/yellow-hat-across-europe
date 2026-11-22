@@ -16,6 +16,12 @@
  * --snapshot writes a picture of the window once it has settled and quits
  * (for checking the layout). MADELINE_SAVE_DIR moves the settings and saves,
  * as it does for the engine: tests use it so they never touch a player's own.
+ *
+ * A release (the zip of scripts/package/windows.sh) carries no engine: the
+ * engine is the game's code and is built on the player's machine by the kit
+ * beside this program (kit\madeline_kit.py, MADELINE_KIT to name another),
+ * into the data folder. With a kit, unpacking, checking and building go
+ * through it; without one (a build from a checkout) through MSYS2's make.
  */
 #include <windows.h>      /* built with -municode: the wide API throughout */
 #include <commctrl.h>
@@ -60,9 +66,10 @@ static int g_dpi = 96;
 
 static wchar_t g_data[MAX_PATH];       /* settings, saves, screenshots: the engine's folder (src/platform.c) */
 static wchar_t g_ini[MAX_PATH];
-static wchar_t g_engine[MAX_PATH];     /* madeline.exe, beside this program */
+static wchar_t g_engine[MAX_PATH];     /* madeline.exe: beside this program, or a release's in the data folder */
 static wchar_t g_root[MAX_PATH];       /* the checkout this was built from, for building an engine */
 static wchar_t g_msys[MAX_PATH];       /* the MSYS2 it was built with */
+static wchar_t g_kit[MAX_PATH];        /* a release's kit, or empty */
 static wchar_t g_disc[MAX_PATH];
 static wchar_t g_message[512];         /* what the footer says; empty: the key hints */
 static wchar_t g_snapshot[MAX_PATH];
@@ -240,13 +247,14 @@ static void load_saves(void) {
 
 /* ---- what the window shows ---------------------------------------------- */
 
-static int can_build(void) { return g_root[0] && g_msys[0] && disc_valid() && !g_busy && !g_building && !g_playing; }
+static int can_build(void) { return ((g_root[0] && g_msys[0]) || g_kit[0]) && disc_valid() && !g_busy && !g_building && !g_playing; }
 static int can_play(void) { return disc_valid() && g_engine_ok == 1 && !g_busy && !g_building && !g_playing && file_exists(g_engine); }
 
 static void update(void) {
     int valid = disc_valid();
     SetWindowTextW(g_disc_status, g_busy ? L"Unpacking the disc image\u2026" : valid ? L"\u2713  Disc found" : L"No disc chosen yet");
-    SetWindowTextW(g_disc_path, g_disc[0] ? g_disc : L"Choose your own disc image (.iso) or a folder with the disc's files.");
+    SetWindowTextW(g_disc_path, g_disc[0] ? g_disc : g_kit[0] ? L"Choose your own disc image (.iso, or the .zip it came in) or a folder with the disc's files."
+                                                          : L"Choose your own disc image (.iso) or a folder with the disc's files.");
     SetWindowTextW(g_engine_status, g_building ? L"Recompiling the game from your disc\u2026"
                    : g_engine_ok == 1 ? L"\u2713  Engine built for this disc"
                    : g_engine_ok == 0 ? L"This disc needs its engine built" : L"Checking the engine\u2026");
@@ -295,11 +303,44 @@ static void msys_path(const wchar_t *in, wchar_t *out, size_t n) {
     for (wchar_t *p = out; *p; p++) if (*p == L'\\') *p = L'/';
 }
 
+/* A path as one argument of a command line: in quotes, with any backslashes
+ * before the closing quote doubled, or a disc at a drive's root ("D:\\")
+ * would end in \\" and swallow the quote (CommandLineToArgvW's rule). */
+static const wchar_t *arg(const wchar_t *path, wchar_t *out) {
+    size_t n = wcslen(path), tail = 0;
+    while (tail < n && path[n - 1 - tail] == L'\\') tail++;
+    swprintf(out, 2 * MAX_PATH, L"\"%ls%.*ls\"", path, (int)tail, path + n - tail);
+    return out;
+}
+
+/* The kit's tool, run by the kit's own Python. */
+static void kit_cmd(Job *job, const wchar_t *args) {
+    swprintf(job->cmd, 4096, L"\"%ls\\python\\python.exe\" -IB \"%ls\\madeline_kit.py\" %ls", g_kit, g_kit, args);
+}
+static void build_log(wchar_t *out) {
+    if (g_kit[0]) swprintf(out, MAX_PATH, L"%ls\\engine-build.log", g_data);
+    else swprintf(out, MAX_PATH, L"%ls\\build\\launcher-build.log", g_root);
+}
+
 /* The engine is the game's own code, lifted from one particular MADEURO.EXE:
  * a disc with a different build needs its own. `make engine-into-app` lifts
- * this disc's, compiles it with the host and puts it beside this program. */
+ * this disc's, compiles it with the host and puts it beside this program; in
+ * a release the kit does the same into the data folder. */
 static void build_engine(void) {
-    wchar_t root[MAX_PATH], disc[MAX_PATH];
+    wchar_t root[MAX_PATH], disc[MAX_PATH], args[3 * MAX_PATH];
+    if (g_kit[0]) {
+        Job *job = new_job(WM_BUILT);
+        wchar_t a[2 * MAX_PATH];
+        swprintf(args, 3 * MAX_PATH, L"build %ls \"%ls\\engine\"", arg(g_disc, a), g_data);
+        kit_cmd(job, args);
+        build_log(job->log);
+        SHCreateDirectoryExW(NULL, g_data, NULL);
+        g_building = 1;
+        say(L"Recompiling the game from your disc\u2026 (one to three minutes the first time)");
+        update();
+        start_job(job);
+        return;
+    }
     if (!g_root[0] || !g_msys[0]) {
         say(L"This disc needs its own engine, and this program does not know where its source is. Run: make app CD=<disc folder>");
         update();
@@ -309,7 +350,7 @@ static void build_engine(void) {
     msys_path(g_root, root, MAX_PATH);
     msys_path(g_disc, disc, MAX_PATH);
     swprintf(job->cmd, 4096, L"\"%ls\\usr\\bin\\bash.exe\" -lc \"make -C '%ls' engine-into-app CD='%ls'\"", g_msys, root, disc);
-    swprintf(job->log, MAX_PATH, L"%ls\\build\\launcher-build.log", g_root);
+    build_log(job->log);
     SetEnvironmentVariableW(L"MSYSTEM", L"UCRT64");
     g_building = 1;
     say(L"Recompiling the game from your disc\u2026");
@@ -317,10 +358,22 @@ static void build_engine(void) {
     start_job(job);
 }
 
-/* Ask the engine whether it was built for this disc (`madeline --check`: 0 yes, 3 no). */
+/* Ask the engine whether it was built for this disc (`madeline --check`: 0 yes, 3 no);
+ * with a kit, the kit, which also knows whether this version of the app built it. */
 static void check_engine(int then_build) {
     g_then_build = then_build;
     if (!disc_valid()) { g_engine_ok = -1; update(); return; }
+    if (g_kit[0]) {
+        wchar_t args[3 * MAX_PATH];
+        Job *job = new_job(WM_CHECKED);
+        wchar_t a[2 * MAX_PATH];
+        swprintf(args, 3 * MAX_PATH, L"check %ls \"%ls\\engine\"", arg(g_disc, a), g_data);
+        kit_cmd(job, args);
+        g_engine_ok = -1;
+        update();
+        start_job(job);
+        return;
+    }
     if (!file_exists(g_engine)) {
         g_engine_ok = 0;
         update();
@@ -328,7 +381,8 @@ static void check_engine(int then_build) {
         return;
     }
     Job *job = new_job(WM_CHECKED);
-    swprintf(job->cmd, 4096, L"\"%ls\" --check \"%ls\"", g_engine, g_disc);
+    wchar_t a[2 * MAX_PATH];
+    swprintf(job->cmd, 4096, L"\"%ls\" --check %ls", g_engine, arg(g_disc, a));
     g_engine_ok = -1;
     update();
     start_job(job);
@@ -337,7 +391,8 @@ static void check_engine(int then_build) {
 static void play(void) {
     if (!can_play()) return;
     Job *job = new_job(WM_PLAYED);
-    swprintf(job->cmd, 4096, L"\"%ls\" \"%ls\"", g_engine, g_disc);
+    wchar_t a[2 * MAX_PATH];
+    swprintf(job->cmd, 4096, L"\"%ls\" %ls", g_engine, arg(g_disc, a));
     lstrcpynW(job->cwd, g_disc, MAX_PATH);
     swprintf(job->log, MAX_PATH, L"%ls\\last-run.log", g_data);       /* what the engine printed, for when something is wrong */
     g_playing = 1;
@@ -370,6 +425,17 @@ static void use_image(const wchar_t *iso) {
     wchar_t dest[MAX_PATH];
     Job *job = new_job(WM_UNPACKED);
     swprintf(dest, MAX_PATH, L"%ls\\disc", g_data);
+    if (g_kit[0]) {                    /* the kit reads .iso (and the .zip it is downloaded in) itself */
+        wchar_t args[3 * MAX_PATH];
+        swprintf(args, 3 * MAX_PATH, L"extract --replace \"%ls\" \"%ls\"", iso, dest);
+        kit_cmd(job, args);
+        SHCreateDirectoryExW(NULL, g_data, NULL);
+        g_busy = 1;
+        say(L"Unpacking the disc image\u2026");
+        update();
+        start_job(job);
+        return;
+    }
     SHCreateDirectoryExW(NULL, dest, NULL);
     SetEnvironmentVariableW(L"MADELINE_ISO", iso);
     SetEnvironmentVariableW(L"MADELINE_DEST", dest);
@@ -388,7 +454,7 @@ static void use_image(const wchar_t *iso) {
 static void choose_image(void) {
     wchar_t file[MAX_PATH] = L"";
     OPENFILENAMEW of = { .lStructSize = sizeof of, .hwndOwner = g_wnd, .lpstrFile = file, .nMaxFile = MAX_PATH,
-        .lpstrFilter = L"Disc images (*.iso)\0*.iso\0All files\0*.*\0", .lpstrTitle = L"Choose your own disc image of the game",
+        .lpstrFilter = g_kit[0] ? L"Disc images (*.iso, *.zip)\0*.iso;*.zip\0All files\0*.*\0" : L"Disc images (*.iso)\0*.iso\0All files\0*.*\0", .lpstrTitle = L"Choose your own disc image of the game",
         .Flags = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_NOCHANGEDIR };
     if (GetOpenFileNameW(&of)) use_image(file);
 }
@@ -531,7 +597,7 @@ static void snapshot(const wchar_t *file) {
     int w = rc.right, h = rc.bottom, stride = (w * 3 + 3) & ~3;
     HDC wdc = GetDC(g_wnd), m = CreateCompatibleDC(wdc);
     HBITMAP bmp = CreateCompatibleBitmap(wdc, w, h), old = SelectObject(m, bmp);
-    BITMAPINFO bi = { { sizeof(BITMAPINFOHEADER), w, h, 1, 24, BI_RGB } };
+    BITMAPINFO bi = { .bmiHeader = { .biSize = sizeof(BITMAPINFOHEADER), .biWidth = w, .biHeight = h, .biPlanes = 1, .biBitCount = 24, .biCompression = BI_RGB } };
     BITMAPFILEHEADER fh = { 0x4D42, sizeof fh + sizeof bi.bmiHeader + stride * h, 0, 0, sizeof fh + sizeof bi.bmiHeader };
     unsigned char *px = malloc((size_t)stride * h);
     FILE *f;
@@ -637,7 +703,12 @@ static LRESULT CALLBACK wndproc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp) {
         wchar_t dest[MAX_PATH];
         g_busy = 0;
         swprintf(dest, MAX_PATH, L"%ls\\disc", g_data);
-        if (wp != 0) { say(L"Could not read that disc image."); update(); return 0; }
+        if (wp != 0) {
+            say(g_kit[0] && wp == 65 ? L"That image is not the game's disc: there is no MADEURO.EXE on it."
+                : g_kit[0] ? L"Could not unpack that disc image. Is it a .iso, or a .zip with one inside?" : L"Could not read that disc image.");
+            update();
+            return 0;
+        }
         use_folder(dest);
         if (disc_valid() && !wcscmp(g_disc, dest)) { if (!g_building) say(L"Disc unpacked."); }
         else say(L"That image is not the game's disc: there is no MADEURO.EXE on it.");
@@ -655,7 +726,9 @@ static LRESULT CALLBACK wndproc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (wp == 0) { say(L"Engine built for this disc."); check_engine(0); }
         else {
             g_engine_ok = 0;
-            swprintf(g_message, 512, L"The build failed. See %ls\\build\\launcher-build.log", g_root);
+            wchar_t log[MAX_PATH];
+            build_log(log);
+            swprintf(g_message, 512, L"The build failed. See %ls", log);
             update();
         }
         return 0;
@@ -722,7 +795,8 @@ static void read_note(const wchar_t *dir, const wchar_t *name, wchar_t *out) {
 }
 
 int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmdline, int show) {
-    wchar_t here[MAX_PATH], given[MAX_PATH] = L"", makefile[MAX_PATH + 16];
+    wchar_t here[MAX_PATH], given[MAX_PATH] = L"", makefile[MAX_PATH + 16], kit_json[MAX_PATH + 16];
+    (void)prev; (void)cmdline;            /* the command line is read whole, below */
     int argc = 0;
     wchar_t **argv = CommandLineToArgvW(GetCommandLineW(), &argc);
     for (int i = 1; argv && i < argc; i++) {
@@ -746,6 +820,13 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmdline, int show) {
     read_note(here, L"msys-root.txt", g_msys);
     swprintf(makefile, MAX_PATH + 16, L"%ls\\Makefile", g_root);
     if (!file_exists(makefile)) g_root[0] = 0;
+    if (!GetEnvironmentVariableW(L"MADELINE_KIT", g_kit, MAX_PATH) || !g_kit[0]) swprintf(g_kit, MAX_PATH, L"%ls\\kit", here);
+    swprintf(kit_json, MAX_PATH + 16, L"%ls\\kit.json", g_kit);
+    if (file_exists(kit_json)) {        /* a release: the engine lives in the data folder */
+        wchar_t engine[MAX_PATH];
+        if (!GetEnvironmentVariableW(L"MADELINE_ENGINE", engine, MAX_PATH) || !engine[0])
+            swprintf(g_engine, MAX_PATH, L"%ls\\engine\\madeline.exe", g_data);
+    } else g_kit[0] = 0;
 
     INITCOMMONCONTROLSEX icc = { sizeof icc, ICC_STANDARD_CLASSES | ICC_LISTVIEW_CLASSES };
     InitCommonControlsEx(&icc);

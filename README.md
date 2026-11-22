@@ -360,6 +360,15 @@ drive the pointer with a pretend pad, sign in with it and with taps on the
 keyboard drawn over the book, and reach the options screen. No real
 controller or touch screen has been tried yet, on any system.
 
+The releases (2026-11-22): the Linux AppImage, built in an Ubuntu 24.04
+container exactly as CI builds it, was run on CachyOS: pointed at the
+downloaded `.zip`, its launcher unpacked the disc, built the engine with the
+bundled kit in under a minute and showed it ready, and that engine boots to the
+main menu headless (`tests/game.sh`). The Windows zip is cross-built on Linux
+and the macOS dmg on CI's Mac; on those two the only check is the kit's
+selftest (an engine from an empty lift, built and started) in `release.yml`,
+which has not run yet. Neither has been pointed at a real disc.
+
 Known gaps: only the first scene and the activities' first screens have been played by the
 tests. [docs/ROADMAP.md](docs/ROADMAP.md) lists everything still to build.
 
@@ -406,6 +415,16 @@ your disc ──extract──> game/cd/MADEURO.EXE ──pcrecomp──> build/g
 [AGENTS.md](AGENTS.md) is the guide for anyone (or any agent) changing the code.
 
 ## Testing
+
+```sh
+make lint      # warnings as errors in src/ and the launcher, clang-tidy, shellcheck, ruff
+make test      # the kit's tests, the engine's start and its agreement with the kit;
+               # with the game in game/cd, also a boot to the main menu
+```
+
+Both run in CI (`.github/workflows/build.yml`) on every system, without the
+game. Lint tools that are not installed are skipped locally (`LINT_STRICT=1`
+makes that an error, as in CI).
 
 `scripts/playtest.sh` runs the game headless with its clock sped up, feeds it
 clicks and keys, and writes screenshots plus a contact sheet:

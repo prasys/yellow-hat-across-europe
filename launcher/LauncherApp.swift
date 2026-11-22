@@ -167,7 +167,8 @@ struct LauncherView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(model.discIsValid ? "Disc found" : "No disc chosen yet")
                     Text(model.discPath.isEmpty
-                         ? "Choose your own disc image (.iso) or a folder with the disc's files."
+                         ? (Paths.kit != nil ? "Choose your own disc image (.iso, or the .zip it came in) or a folder with the disc's files."
+                                             : "Choose your own disc image (.iso) or a folder with the disc's files.")
                          : (model.discPath as NSString).abbreviatingWithTildeInPath)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -177,7 +178,7 @@ struct LauncherView: View {
                 Spacer()
                 if model.busy { ProgressView().controlSize(.small) }
                 Menu("Choose…") {
-                    Button("Disc image (.iso)…") { chooseImage() }
+                    Button(Paths.kit != nil ? "Disc image (.iso or .zip)…" : "Disc image (.iso)…") { chooseImage() }
                     Button("Folder with the disc's files…") { chooseFolder() }
                 }
                 .fixedSize()
@@ -286,7 +287,7 @@ struct LauncherView: View {
     private func chooseImage() {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = false
-        panel.allowedContentTypes = [UTType(filenameExtension: "iso") ?? .data, .diskImage]
+        panel.allowedContentTypes = [UTType(filenameExtension: "iso") ?? .data, .diskImage] + (Paths.kit != nil ? [UTType.zip] : [])
         panel.prompt = "Unpack"
         panel.message = "Choose your own disc image of the game. It is unpacked into the app's folder; the image is not changed."
         if panel.runModal() == .OK, let url = panel.url { model.useImage(url) }

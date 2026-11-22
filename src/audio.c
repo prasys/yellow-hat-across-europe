@@ -128,8 +128,10 @@ static void a_waveOutWrite(void) {                       /* (hwo, &WAVEHDR, size
     size_t samples = W.bits == 16 ? bytes / 2 : bytes, frames = samples / (size_t)W.channels;
     samples = frames * (size_t)W.channels;
     if (W.fifo_n + samples > W.fifo_cap) {
-        W.fifo_cap = (W.fifo_n + samples) * 2;
-        W.fifo = (int16_t *)realloc(W.fifo, W.fifo_cap * sizeof(int16_t));
+        size_t cap = (W.fifo_n + samples) * 2;
+        int16_t *grown = (int16_t *)realloc(W.fifo, cap * sizeof(int16_t));
+        if (!grown) { fprintf(stderr, "madeline: out of memory for %zu sound samples\n", cap); abort(); }
+        W.fifo = grown, W.fifo_cap = cap;
     }
     if (data) {
         if (W.bits == 16) memcpy(W.fifo + W.fifo_n, data, samples * 2);
